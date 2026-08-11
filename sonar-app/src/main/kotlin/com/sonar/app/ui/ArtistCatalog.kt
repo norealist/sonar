@@ -1,5 +1,7 @@
 package com.sonar.app.ui
 
+import com.sonar.app.data.Track
+
 data class ArtistSingle(
     val artist: String,
     val title: String,
@@ -31,6 +33,16 @@ object ArtistCatalog {
             else -> emptyList()
         }
         return source.map { (title, cover) -> ArtistSingle(artist, title, cover) }
+    }
+
+    fun singlesForTracks(artist: String, tracks: List<Track>): List<ArtistSingle> {
+        return tracks.map { track -> ArtistSingle(artist, track.title, track.artworkPath.orEmpty()) }
+    }
+
+    fun heroAssetFor(artist: String): String? = when {
+        artist.equals("PAXNKOXD", ignoreCase = true) -> "artists/PAXNKOXD.jpg"
+        artist.equals("1nonly", ignoreCase = true) -> "artists/1nonly.jpg"
+        else -> null
     }
 
     fun statsFor(artist: String): Pair<String, String> = when {

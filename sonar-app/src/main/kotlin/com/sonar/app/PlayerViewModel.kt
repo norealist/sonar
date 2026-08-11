@@ -7,6 +7,7 @@ import android.provider.DocumentsContract
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.sonar.app.data.AppScreen
+import com.sonar.app.data.primaryArtist
 import com.sonar.app.data.LibraryRepository
 import com.sonar.app.data.MediaMetadataRepository
 import com.sonar.app.data.PersistentLibraryRepository
@@ -60,7 +61,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun openArtist(artist: String) {
-        mutableArtist.value = artist
+        mutableArtist.value = primaryArtist(artist)
         mutableScreen.value = AppScreen.ARTIST
     }
 

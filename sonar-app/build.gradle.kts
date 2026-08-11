@@ -10,7 +10,8 @@ val syncUiAssets = tasks.register<Sync>("syncUiAssets") {
     from(source) {
         include("logo.png", "logo2.png", "deezer-logo.png")
         include("fonts/Disco.ttf")
-        include("artists/**", "singles/**", "music/covers/**")
+        include("artists/PAXNKOXD.jpg", "artists/1nonly.jpg")
+        include("music/covers/**")
     }
     into(layout.buildDirectory.dir("generated/uiAssets"))
 }

@@ -139,6 +139,7 @@ import com.sonar.app.data.RepeatMode
 import com.sonar.app.data.Sheet
 import com.sonar.app.data.SubControlMode
 import com.sonar.app.data.Track
+import com.sonar.app.data.trackIncludesArtist
 import com.sonar.app.player.PlayerUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -200,15 +201,7 @@ fun SonarApp(
                     )
                 }
                 composable(AppScreen.ARTIST.route) {
-                    ArtistScreen(
-                        artist = artist ?: "Unknown artist",
-                        tracks = library.tracks.filter { it.artist == artist },
-                        grid = settings.artistGrid,
-                        onBack = { viewModel.navigate(AppScreen.LIBRARY) },
-                        onToggleGrid = { viewModel.settings.update { it.copy(artistGrid = !it.artistGrid) } },
-                        onTrack = viewModel::playTrack,
-                        context = context,
-                    )
+                    Box(Modifier.fillMaxSize())
                 }
                 composable(AppScreen.SETTINGS.route) {
                     SettingsScreen(
@@ -249,6 +242,25 @@ fun SonarApp(
                     onQueue = { viewModel.setSheet(Sheet.QUEUE) },
                     onFavorite = viewModel::toggleFavorite,
                     onArtist = { viewModel.openArtist(it) },
+                )
+            }
+            AnimatedVisibility(
+                visible = screen == AppScreen.ARTIST,
+                enter = fadeIn(animationSpec = tween(220)),
+                exit = fadeOut(animationSpec = tween(180)),
+                modifier = Modifier.fillMaxSize().zIndex(20f),
+            ) {
+                val selectedArtist = artist
+                ArtistScreen(
+                    artist = selectedArtist ?: "Unknown artist",
+                    tracks = library.tracks.filter { track ->
+                        selectedArtist != null && trackIncludesArtist(track.artist, selectedArtist)
+                    },
+                    grid = settings.artistGrid,
+                    onBack = { viewModel.navigate(AppScreen.LIBRARY) },
+                    onToggleGrid = { viewModel.settings.update { it.copy(artistGrid = !it.artistGrid) } },
+                    onTrack = viewModel::playTrack,
+                    context = context,
                 )
             }
             AnimatedVisibility(

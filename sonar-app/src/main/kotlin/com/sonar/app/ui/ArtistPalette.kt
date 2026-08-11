@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import com.sonar.app.data.Track
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -25,12 +26,20 @@ data class ArtistArtwork(
     val palette: ArtistPalette,
 )
 
+data class ArtistTilePalette(
+    val surface: Color,
+    val border: Color,
+)
+
 @Composable
-fun rememberArtistArtwork(assetPath: String): ArtistArtwork {
+fun rememberArtistArtwork(assetPath: String, fallbackTrack: Track? = null): ArtistArtwork {
     val context = LocalContext.current
     var artwork by remember { mutableStateOf(ArtistArtwork(null, ArtistPalette())) }
-    LaunchedEffect(assetPath) {
+    LaunchedEffect(assetPath, fallbackTrack?.id) {
+        artwork = ArtistArtwork(null, ArtistPalette())
         artwork = loadArtistArtwork(context, assetPath)
+            .takeIf { it.bitmap != null }
+            ?: loadFallbackArtistArtwork(context, fallbackTrack)
     }
     return artwork
 }
@@ -38,6 +47,47 @@ fun rememberArtistArtwork(assetPath: String): ArtistArtwork {
 private suspend fun loadArtistArtwork(context: Context, assetPath: String): ArtistArtwork = withContext(Dispatchers.IO) {
     val bitmap = runCatching { context.assets.open(assetPath).use(BitmapFactory::decodeStream) }.getOrNull()
     ArtistArtwork(bitmap, bitmap?.let(::extractArtistPalette) ?: ArtistPalette())
+}
+
+private suspend fun loadFallbackArtistArtwork(context: Context, track: Track?): ArtistArtwork =
+    withContext(Dispatchers.IO) {
+        val bitmap = track?.let { loadTrackArtwork(context, it, extractPalette = false).bitmap }
+        ArtistArtwork(bitmap, bitmap?.let(::extractArtistPalette) ?: ArtistPalette())
+    }
+
+fun extractArtistTilePalette(bitmap: Bitmap): ArtistTilePalette {
+    val sample = Bitmap.createScaledBitmap(bitmap, 40, 40, true)
+    val pixels = IntArray(sample.width * sample.height)
+    sample.getPixels(pixels, 0, sample.width, 0, 0, sample.width, sample.height)
+
+    var red = 0
+    var green = 0
+    var blue = 0
+    var count = 0
+    pixels.filterIndexed { index, _ -> index % 4 == 0 }.forEach { pixel ->
+        val r = android.graphics.Color.red(pixel)
+        val g = android.graphics.Color.green(pixel)
+        val b = android.graphics.Color.blue(pixel)
+        val hsl = rgbToHsl(r, g, b)
+        if (hsl[1] > .12f && hsl[2] > .12f && hsl[2] < .88f) {
+            red += r
+            green += g
+            blue += b
+            count++
+        }
+    }
+
+    val averageRed = if (count > 0) red / count else 38
+    val averageGreen = if (count > 0) green / count else 32
+    val averageBlue = if (count > 0) blue / count else 42
+    val hsl = rgbToHsl(averageRed, averageGreen, averageBlue)
+    val surfaceRgb = hslToRgb(hsl[0], maxOf(hsl[1], .35f), .15f)
+    val borderRgb = hslToRgb(hsl[0], maxOf(hsl[1], .55f), .48f)
+
+    return ArtistTilePalette(
+        surface = Color(android.graphics.Color.rgb(surfaceRgb[0], surfaceRgb[1], surfaceRgb[2])),
+        border = Color(android.graphics.Color.rgb(borderRgb[0], borderRgb[1], borderRgb[2])).copy(alpha = .6f),
+    )
 }
 
 private fun extractArtistPalette(bitmap: Bitmap): ArtistPalette {
