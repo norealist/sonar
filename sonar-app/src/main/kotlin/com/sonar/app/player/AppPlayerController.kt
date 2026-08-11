@@ -62,6 +62,7 @@ class AppPlayerController(
     private var sleepJob: Job? = null
     private var wasPlayingBeforeSeek = false
     private var lastObservedState = PlayerState.IDLE
+    private var shuffleOrder: List<Int> = emptyList()
     private val released = AtomicBoolean(false)
 
     val state: StateFlow<PlayerUiState> = mutableState.asStateFlow()
@@ -78,6 +79,7 @@ class AppPlayerController(
             currentIndex = index,
             selectedTrack = tracks.getOrNull(index),
         )
+        if (state.value.shuffle) resetShuffleOrder(index) else shuffleOrder = emptyList()
     }
 
     fun selectTrack(track: Track, autoplay: Boolean = true) {
@@ -87,6 +89,7 @@ class AppPlayerController(
             currentIndex = index,
             error = null,
         )
+        if (state.value.shuffle) resetShuffleOrder(index)
         settings.update { it.copy(selectedTrackId = track.id, selectedIndex = index) }
         scope.launch { openSelected(autoplay) }
     }
@@ -155,11 +158,13 @@ class AppPlayerController(
     }
 
     fun cycleRepeat() {
-        mutableState.value = state.value.copy(repeatMode = when (state.value.repeatMode) {
+        val nextMode = when (state.value.repeatMode) {
             RepeatMode.OFF -> RepeatMode.ALL
             RepeatMode.ALL -> RepeatMode.ONE
             RepeatMode.ONE -> RepeatMode.OFF
-        })
+        }
+        mutableState.value = state.value.copy(repeatMode = nextMode)
+        settings.update { it.copy(repeatMode = nextMode) }
     }
 
     fun tapSubControl() {
@@ -177,7 +182,10 @@ class AppPlayerController(
     }
 
     fun toggleShuffle() {
-        mutableState.value = state.value.copy(shuffle = !state.value.shuffle)
+        val enabled = !state.value.shuffle
+        mutableState.value = state.value.copy(shuffle = enabled)
+        if (enabled) resetShuffleOrder(state.value.currentIndex) else shuffleOrder = emptyList()
+        settings.update { it.copy(shuffle = enabled) }
     }
 
     fun setVolume(volume: Float) {
@@ -187,11 +195,13 @@ class AppPlayerController(
     }
 
     fun setHighResolution(enabled: Boolean) {
-        settings.update { it.copy(highResolutionOutput = enabled) }
+        val previous = settings.current.highResolutionOutput
         scope.launch {
-            publishResult(withContext(Dispatchers.IO) {
+            val result = withContext(Dispatchers.IO) {
                 gateway.setHighResolutionOutputEnabled(enabled)
-            })
+            }
+            settings.update { it.copy(highResolutionOutput = if (result.isOk) enabled else previous) }
+            publishResult(result)
         }
     }
 
@@ -264,23 +274,20 @@ class AppPlayerController(
             }
             return
         }
-        val nextIndex = when {
-            current.shuffle && current.repeatMode != RepeatMode.ONE && current.queue.size > 1 -> {
-                current.queue.indices.filterNot { it == current.currentIndex }.random()
+        val resolved = if (current.shuffle && current.queue.size > 1) {
+            resolveShuffleIndex(current, forward, automatic)
+        } else {
+            val nextIndex = if (forward) current.currentIndex + 1 else current.currentIndex - 1
+            when {
+                nextIndex in current.queue.indices -> nextIndex
+                automatic && current.repeatMode == RepeatMode.ALL -> if (forward) 0 else current.queue.lastIndex
+                !automatic -> if (forward) 0 else current.queue.lastIndex
+                else -> null
             }
-            forward -> current.currentIndex + 1
-            else -> current.currentIndex - 1
         }
-        val resolved = when {
-            nextIndex in current.queue.indices -> nextIndex
-            automatic && current.repeatMode == RepeatMode.ALL -> if (forward) 0 else current.queue.lastIndex
-            !automatic -> if (forward) 0 else current.queue.lastIndex
-            else -> {
-                if (automatic) {
-                    mutableState.value = state.value.copy(coreState = PlayerState.COMPLETED)
-                }
-                return
-            }
+        if (resolved == null) {
+            if (automatic) mutableState.value = state.value.copy(coreState = PlayerState.COMPLETED)
+            return
         }
         val track = current.queue[resolved]
         mutableState.value = state.value.copy(currentIndex = resolved, selectedTrack = track)
@@ -322,7 +329,42 @@ class AppPlayerController(
             selectedTrack = null,
             currentIndex = settings.selectedIndex,
             subControlMode = settings.subControlMode,
+            repeatMode = settings.repeatMode,
+            shuffle = settings.shuffle,
         )
-        scope.launch(Dispatchers.IO) { gateway.setVolume(settings.volume) }
+        scope.launch(Dispatchers.IO) {
+            gateway.setVolume(settings.volume)
+            gateway.setHighResolutionOutputEnabled(settings.highResolutionOutput)
+        }
+    }
+
+    private fun resetShuffleOrder(currentIndex: Int) {
+        val queue = state.value.queue
+        if (queue.isEmpty()) {
+            shuffleOrder = emptyList()
+            return
+        }
+        val rest = queue.indices.filterNot { it == currentIndex }.shuffled()
+        shuffleOrder = if (currentIndex in queue.indices) listOf(currentIndex) + rest else rest
+    }
+
+    private fun resolveShuffleIndex(current: PlayerUiState, forward: Boolean, automatic: Boolean): Int? {
+        if (shuffleOrder.size != current.queue.size || current.currentIndex !in shuffleOrder) {
+            resetShuffleOrder(current.currentIndex)
+        }
+        val currentPosition = shuffleOrder.indexOf(current.currentIndex)
+        if (currentPosition < 0) return null
+        val nextPosition = if (forward) currentPosition + 1 else currentPosition - 1
+        if (nextPosition in shuffleOrder.indices) return shuffleOrder[nextPosition]
+
+        if (automatic && current.repeatMode == RepeatMode.ALL) {
+            resetShuffleOrder(current.currentIndex)
+            return shuffleOrder.getOrNull(1) ?: current.currentIndex
+        }
+        if (!automatic) {
+            resetShuffleOrder(current.currentIndex)
+            return if (forward) shuffleOrder.getOrNull(1) else shuffleOrder.lastOrNull()
+        }
+        return null
     }
 }

@@ -29,6 +29,8 @@ class PersistentSettingsRepository(context: Context) : SettingsRepository {
             .putInt("gridColumns", next.gridColumns)
             .putBoolean("artistGrid", next.artistGrid)
             .putString("subControlMode", next.subControlMode.name)
+            .putString("repeatMode", next.repeatMode.name)
+            .putBoolean("shuffle", next.shuffle)
             .putString("selectedTrackId", next.selectedTrackId)
             .putInt("selectedIndex", next.selectedIndex)
             .apply()
@@ -44,6 +46,10 @@ class PersistentSettingsRepository(context: Context) : SettingsRepository {
         subControlMode = runCatching {
             SubControlMode.valueOf(preferences.getString("subControlMode", SubControlMode.SHUFFLE.name)!!)
         }.getOrDefault(SubControlMode.SHUFFLE),
+        repeatMode = runCatching {
+            RepeatMode.valueOf(preferences.getString("repeatMode", RepeatMode.OFF.name)!!)
+        }.getOrDefault(RepeatMode.OFF),
+        shuffle = preferences.getBoolean("shuffle", false),
         selectedTrackId = preferences.getString("selectedTrackId", null),
         selectedIndex = preferences.getInt("selectedIndex", 0),
     )

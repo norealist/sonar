@@ -60,6 +60,8 @@ data class AppSettings(
     val gridColumns: Int = 4,
     val artistGrid: Boolean = true,
     val subControlMode: SubControlMode = SubControlMode.SHUFFLE,
+    val repeatMode: RepeatMode = RepeatMode.OFF,
+    val shuffle: Boolean = false,
     val selectedTrackId: String? = null,
     val selectedIndex: Int = 0,
 )

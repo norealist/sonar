@@ -133,7 +133,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         controller.setFavorite(track.id in library.snapshot.value.favoriteTrackIds)
     }
 
-    fun playTrack(track: Track) {
+    fun playTrack(track: Track, queue: List<Track> = library.snapshot.value.tracks) {
+        controller.setQueue(queue, track.id)
         selectTrack(track)
         mutableScreen.value = AppScreen.PLAYER
     }

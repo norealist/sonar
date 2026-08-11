@@ -95,6 +95,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateFloat
@@ -129,8 +130,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.BackHandler
 import androidx.navigation.NavHostController
+import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.sonar.app.PlayerViewModel
 import com.sonar.app.data.AppScreen
@@ -151,6 +154,7 @@ fun SonarApp(
     context: Context,
 ) {
     val nav = rememberNavController()
+    val navBackStackEntry by nav.currentBackStackEntryAsState()
     val library by viewModel.library.snapshot.collectAsStateWithLifecycle()
     val settings by viewModel.settings.settings.collectAsStateWithLifecycle()
     val player by viewModel.player.collectAsStateWithLifecycle()
@@ -163,7 +167,7 @@ fun SonarApp(
     val snackbar = remember { SnackbarHostState() }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    LaunchedEffect(screen, player.selectedTrack?.id) {
+    LaunchedEffect(screen, navBackStackEntry?.destination?.route, player.selectedTrack?.id) {
         if (screen != AppScreen.PLAYER && nav.currentDestination?.route != screen.route) {
             nav.navigate(screen.route) {
                 popUpTo(nav.graph.startDestinationId) { saveState = false }
@@ -171,6 +175,16 @@ fun SonarApp(
                 restoreState = false
             }
         }
+    }
+    DisposableEffect(nav) {
+        val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
+            val destinationScreen = AppScreen.values().firstOrNull { it.route == destination.route }
+            if (destinationScreen != null && destinationScreen != AppScreen.PLAYER && viewModel.screen.value != destinationScreen) {
+                viewModel.navigate(destinationScreen)
+            }
+        }
+        nav.addOnDestinationChangedListener(listener)
+        onDispose { nav.removeOnDestinationChangedListener(listener) }
     }
     LaunchedEffect(appError) {
         appError?.let { snackbar.showSnackbar(it) }
@@ -197,7 +211,7 @@ fun SonarApp(
                         onSettings = { viewModel.navigate(AppScreen.SETTINGS) },
                         onToggleGrid = { viewModel.settings.update { it.copy(libraryGrid = !it.libraryGrid) } },
                         onToggleGridColumn = { columns -> viewModel.settings.update { it.copy(gridColumns = columns) } },
-                        onTrack = viewModel::playTrack,
+                        onTrack = { track, queue -> viewModel.playTrack(track, queue) },
                         onArtist = viewModel::openArtist,
                     )
                 }
@@ -260,18 +274,18 @@ fun SonarApp(
                     grid = settings.artistGrid,
                     onBack = { viewModel.navigate(AppScreen.LIBRARY) },
                     onToggleGrid = { viewModel.settings.update { it.copy(artistGrid = !it.artistGrid) } },
-                    onTrack = viewModel::playTrack,
+                    onTrack = { track -> viewModel.playTrack(track) },
                     context = context,
                     deezerState = deezerArtist,
                 )
             }
             AnimatedVisibility(
-                visible = screen == AppScreen.LIBRARY && miniTrack != null,
+                visible = screen != AppScreen.SETTINGS && screen != AppScreen.PLAYER && miniTrack != null,
                     enter = slideInVertically(animationSpec = tween(350, easing = ExpressiveEasing)) { it } + fadeIn(animationSpec = tween(300, easing = ExpressiveEasing)),
                     exit = slideOutVertically(animationSpec = tween(350, easing = ExpressiveEasing)) { it } + fadeOut(animationSpec = tween(250, easing = ExpressiveEasing)),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .zIndex(10f)
+                    .zIndex(30f)
                     .navigationBarsPadding()
                     .padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
             ) {
@@ -371,7 +385,7 @@ private fun LibraryScreen(
     onSettings: () -> Unit,
     onToggleGrid: () -> Unit,
     onToggleGridColumn: (Int) -> Unit,
-    onTrack: (Track) -> Unit,
+    onTrack: (Track, List<Track>) -> Unit,
     onArtist: (String) -> Unit,
 ) {
     var sortMode by remember { mutableStateOf(LibrarySortMode.ARTIST_ASC) }
@@ -486,11 +500,11 @@ private fun LibraryScreen(
                         if (sortMode == LibrarySortMode.ARTIST_ASC || sortMode == LibrarySortMode.ARTIST_DESC) displayTracks.groupBy { it.artist }.forEach { (artist, artistTracks) ->
                             item(span = { GridItemSpan(maxLineSpan) }, key = "artist-$artist") { ArtistDivider(artist) }
                             items(artistTracks, key = { it.id }) { track ->
-                                TrackGridCard(track, onClick = { onTrack(track) })
+                                TrackGridCard(track, onClick = { onTrack(track, displayTracks) })
                             }
                         } else {
                             items(displayTracks, key = { it.id }) { track ->
-                                TrackGridCard(track, onClick = { onTrack(track) })
+                                TrackGridCard(track, onClick = { onTrack(track, displayTracks) })
                             }
                         }
                     }
@@ -502,13 +516,13 @@ private fun LibraryScreen(
                                 TrackRow(
                                     track = track,
                                     selected = false,
-                                    onClick = { onTrack(track) },
+                                    onClick = { onTrack(track, displayTracks) },
                                     onArtistClick = { onArtist(track.artist) },
                                 )
                             }
                         } else {
                             items(displayTracks, key = { it.id }) { track ->
-                                TrackRow(track, false, { onTrack(track) }, { onArtist(track.artist) })
+                                TrackRow(track, false, { onTrack(track, displayTracks) }, { onArtist(track.artist) })
                             }
                         }
                     }
@@ -1032,10 +1046,16 @@ private fun SheetHeader(title: String, subtitle: String? = null, onClose: () -> 
 
 @Composable
 private fun QueueSheet(state: PlayerUiState, onSelect: (Track, Boolean) -> Unit, onClose: () -> Unit) {
+    val listState = rememberLazyListState()
+    LaunchedEffect(state.activeSheet, state.selectedTrack?.id, state.queue) {
+        val currentIndex = state.queue.indexOfFirst { it.id == state.selectedTrack?.id }
+        if (currentIndex >= 0) listState.scrollToItem(currentIndex)
+    }
+
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
         SheetHeader("СПИСОК ВОСПРОИЗВЕДЕНИЯ", "${state.queue.size} ТРЕКОВ", onClose)
         Spacer(Modifier.height(12.dp))
-        LazyColumn { items(state.queue, key = { it.id }) { track ->
+        LazyColumn(state = listState) { items(state.queue, key = { it.id }) { track ->
             Surface(
                 color = if (track.id == state.selectedTrack?.id) Color.White.copy(alpha = .24f) else Color.White.copy(alpha = .05f),
                 shape = RoundedCornerShape(16.dp),
