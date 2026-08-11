@@ -45,6 +45,7 @@ enum class AppScreen {
     PLAYER,
     ARTIST,
     SETTINGS,
+    ABOUT,
 }
 
 enum class Sheet {

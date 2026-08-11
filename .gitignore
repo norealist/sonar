@@ -13,6 +13,7 @@ local.properties
 .vscode/
 .kilo/
 kilo-buildAndroidApp.cmd
+kilo-buildArtistScreen.cmd
 
 # Planning and preview-only design artifacts
 plan/

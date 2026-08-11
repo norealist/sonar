@@ -56,6 +56,7 @@ import androidx.compose.material.icons.rounded.Forward10
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.MoreTime
@@ -101,6 +102,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.animateColorAsState
@@ -228,9 +231,16 @@ fun SonarApp(
                         importing = importing,
                         onImport = onPickAudio,
                         onBack = { viewModel.navigate(AppScreen.LIBRARY) },
+                        onAbout = { viewModel.navigate(AppScreen.ABOUT) },
                         onHighResolution = viewModel::toggleHighResolution,
                         onResumeAfterFocusLoss = viewModel::setResumeAfterFocusLoss,
                         onVolume = viewModel.controller::setVolume,
+                    )
+                }
+                composable(AppScreen.ABOUT.route) {
+                    AboutScreen(
+                        context = context,
+                        onBack = { viewModel.navigate(AppScreen.SETTINGS) },
                     )
                 }
                 }
@@ -321,7 +331,13 @@ fun SonarApp(
     }
 
     BackHandler(enabled = screen != AppScreen.LIBRARY || player.activeSheet != null) {
-        if (player.activeSheet != null) viewModel.setSheet(null) else viewModel.navigate(AppScreen.LIBRARY)
+        if (player.activeSheet != null) {
+            viewModel.setSheet(null)
+        } else if (screen == AppScreen.ABOUT) {
+            viewModel.navigate(AppScreen.SETTINGS)
+        } else {
+            viewModel.navigate(AppScreen.LIBRARY)
+        }
     }
 }
 
@@ -473,6 +489,8 @@ private fun LibraryScreen(
                             thumbColor = SonarControlSurface,
                             activeTrackColor = SonarControlSurface,
                             inactiveTrackColor = Color.White.copy(alpha = .2f),
+                            activeTickColor = Color.White,
+                            inactiveTickColor = Color.White,
                         ))
                     }
                 }
@@ -642,6 +660,12 @@ private fun PlayerScreen(
     val density = androidx.compose.ui.platform.LocalDensity.current
     var verticalDragPx by remember { mutableFloatStateOf(0f) }
     var horizontalOffsetPx by remember { mutableFloatStateOf(0f) }
+    var horizontalDragging by remember { mutableStateOf(false) }
+    val animatedHorizontalOffset by animateFloatAsState(
+        targetValue = horizontalOffsetPx,
+        animationSpec = if (horizontalDragging) snap() else tween(220, easing = LinearOutSlowInEasing),
+        label = "swipeOffset",
+    )
     var palette by remember(track?.id) { mutableStateOf(ArtworkPalette()) }
     var scrub by remember(track?.id) { mutableFloatStateOf(0f) }
     val duration = state.durationMs.coerceAtLeast(1L)
@@ -651,12 +675,33 @@ private fun PlayerScreen(
     LaunchedEffect(state.positionMs, state.isSeeking) {
         if (!state.isSeeking) scrub = state.positionMs.toFloat().coerceIn(0f, duration.toFloat())
     }
+    val swipeModifier = Modifier.pointerInput(Unit) {
+        detectHorizontalDragGestures(
+            onDragStart = { horizontalDragging = true },
+            onHorizontalDrag = { change, dragAmount ->
+                horizontalOffsetPx += dragAmount
+                change.consume()
+            },
+            onDragEnd = {
+                val threshold = with(density) { 72.dp.toPx() }
+                when {
+                    horizontalOffsetPx > threshold -> onSwipeNext()
+                    horizontalOffsetPx < -threshold -> onSwipePrevious()
+                }
+                horizontalDragging = false
+                horizontalOffsetPx = 0f
+            },
+            onDragCancel = {
+                horizontalDragging = false
+                horizontalOffsetPx = 0f
+            },
+        )
+    }
     Scaffold(containerColor = Color.Transparent) { padding ->
         BoxWithConstraints(
             Modifier.fillMaxSize()
                 .background(palette.darkSurface)
                 .padding(padding)
-                .graphicsLayer { translationX = horizontalOffsetPx }
                 .pointerInput(Unit) {
                     detectVerticalDragGestures(
                         onVerticalDrag = { change, dragAmount ->
@@ -673,24 +718,8 @@ private fun PlayerScreen(
                         onDragCancel = { verticalDragPx = 0f },
                     )
                 }
-                .pointerInput(Unit) {
-                    detectHorizontalDragGestures(
-                        onHorizontalDrag = { change, dragAmount ->
-                            horizontalOffsetPx += dragAmount
-                            change.consume()
-                        },
-                        onDragEnd = {
-                            val threshold = with(density) { 72.dp.toPx() }
-                            when {
-                                horizontalOffsetPx > threshold -> onSwipeNext()
-                                horizontalOffsetPx < -threshold -> onSwipePrevious()
-                            }
-                            horizontalOffsetPx = 0f
-                        },
-                        onDragCancel = { horizontalOffsetPx = 0f },
-                    )
-                }
         ) {
+            val horizontalOffset = animatedHorizontalOffset
             val expanded = maxWidth >= 700.dp
             Column(
                 Modifier
@@ -704,16 +733,18 @@ private fun PlayerScreen(
             ) {
                 if (expanded) {
                     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(32.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.width(380.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            ArtistHeader(track, state, palette.primary, Modifier.fillMaxWidth().padding(top = 4.dp), alignEnd = false, onArtist = onArtist)
-                            Artwork(track, Modifier.widthIn(max = 320.dp).align(Alignment.CenterHorizontally).aspectRatio(1f).graphicsLayer { scaleX = artworkScale; scaleY = artworkScale }.border(1.dp, Color.White.copy(alpha = .15f), RoundedCornerShape(32.dp)).shadow(artworkShadow, RoundedCornerShape(32.dp), ambientColor = Color.Black.copy(alpha = if (state.isPlaying) .5f else .4f), spotColor = Color.Black.copy(alpha = if (state.isPlaying) .5f else .4f)).shadow(6.dp, RoundedCornerShape(32.dp), ambientColor = palette.primary.copy(alpha = artworkGlow), spotColor = palette.primary.copy(alpha = artworkGlow)), 32.dp, extractPalette = true, onPalette = { palette = it })
+                        Column(swipeModifier.width(380.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            ArtistHeader(track, state, palette.primary, Modifier.fillMaxWidth().padding(top = 4.dp), alignEnd = false, onArtist = onArtist, artistTranslationX = horizontalOffset)
+                            Artwork(track, Modifier.widthIn(max = 320.dp).align(Alignment.CenterHorizontally).aspectRatio(1f).graphicsLayer { translationX = horizontalOffset; scaleX = artworkScale; scaleY = artworkScale }.border(1.dp, Color.White.copy(alpha = .15f), RoundedCornerShape(32.dp)).shadow(artworkShadow, RoundedCornerShape(32.dp), ambientColor = Color.Black.copy(alpha = if (state.isPlaying) .5f else .4f), spotColor = Color.Black.copy(alpha = if (state.isPlaying) .5f else .4f)).shadow(6.dp, RoundedCornerShape(32.dp), ambientColor = palette.primary.copy(alpha = artworkGlow), spotColor = palette.primary.copy(alpha = artworkGlow)), 32.dp, extractPalette = true, onPalette = { palette = it })
                         }
                     PlayerDetails(track, state, scrub, duration, onToggle, onPrevious, onNext, onSeek, onSeeking, { scrub = it }, onSubTap, onSubLongPress, onTimer, onQueue, onFavorite, onArtist, palette.primary, palette.secondary, wide = true, Modifier.weight(1f))
                 }
                 } else {
-                    ArtistHeader(track, state, palette.primary, Modifier.fillMaxWidth().padding(top = 4.dp), alignEnd = true, onArtist = onArtist)
-                    Spacer(Modifier.height(28.dp))
-                    Artwork(track, Modifier.fillMaxWidth().aspectRatio(1f).graphicsLayer { scaleX = artworkScale; scaleY = artworkScale }.border(1.dp, Color.White.copy(alpha = .15f), RoundedCornerShape(36.dp)).shadow(artworkShadow, RoundedCornerShape(36.dp), ambientColor = Color.Black.copy(alpha = if (state.isPlaying) .5f else .4f), spotColor = Color.Black.copy(alpha = if (state.isPlaying) .5f else .4f)).shadow(6.dp, RoundedCornerShape(36.dp), ambientColor = palette.primary.copy(alpha = artworkGlow), spotColor = palette.primary.copy(alpha = artworkGlow)), 36.dp, extractPalette = true, onPalette = { palette = it })
+                    Column(swipeModifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                        ArtistHeader(track, state, palette.primary, Modifier.fillMaxWidth().padding(top = 4.dp), alignEnd = true, onArtist = onArtist, artistTranslationX = horizontalOffset)
+                        Spacer(Modifier.height(28.dp))
+                        Artwork(track, Modifier.fillMaxWidth().aspectRatio(1f).graphicsLayer { translationX = horizontalOffset; scaleX = artworkScale; scaleY = artworkScale }.border(1.dp, Color.White.copy(alpha = .15f), RoundedCornerShape(36.dp)).shadow(artworkShadow, RoundedCornerShape(36.dp), ambientColor = Color.Black.copy(alpha = if (state.isPlaying) .5f else .4f), spotColor = Color.Black.copy(alpha = if (state.isPlaying) .5f else .4f)).shadow(6.dp, RoundedCornerShape(36.dp), ambientColor = palette.primary.copy(alpha = artworkGlow), spotColor = palette.primary.copy(alpha = artworkGlow)), 36.dp, extractPalette = true, onPalette = { palette = it })
+                    }
                     Spacer(Modifier.height(6.dp))
                     Spacer(Modifier.weight(1f))
                     PlayerDetails(track, state, scrub, duration, onToggle, onPrevious, onNext, onSeek, onSeeking, { scrub = it }, onSubTap, onSubLongPress, onTimer, onQueue, onFavorite, onArtist, palette.primary, palette.secondary, wide = false, Modifier.fillMaxWidth())
@@ -724,7 +755,15 @@ private fun PlayerScreen(
 }
 
 @Composable
-private fun ArtistHeader(track: Track?, state: PlayerUiState, accent: Color, modifier: Modifier, alignEnd: Boolean, onArtist: (String) -> Unit) {
+private fun ArtistHeader(
+    track: Track?,
+    state: PlayerUiState,
+    accent: Color,
+    modifier: Modifier,
+    alignEnd: Boolean,
+    onArtist: (String) -> Unit,
+    artistTranslationX: Float = 0f,
+) {
     val animatedAccent by animateColorAsState(accent, animationSpec = tween(600), label = "playerAccent")
     Column(modifier, horizontalAlignment = if (alignEnd) Alignment.End else Alignment.Start) {
         Text(
@@ -736,18 +775,30 @@ private fun ArtistHeader(track: Track?, state: PlayerUiState, accent: Color, mod
             letterSpacing = 1.5.sp,
         )
         Spacer(Modifier.height(1.dp))
-        Text(
-            track?.artist?.uppercase() ?: "NO TRACK",
-            color = SonarText,
-            fontSize = if ((track?.artist?.length ?: 0) > 20) 18.4.sp else 22.4.sp,
-            fontFamily = PlayerDisplayFont,
-            fontWeight = FontWeight.ExtraBold,
-            letterSpacing = 1.sp,
-            maxLines = 2,
-            textAlign = if (alignEnd) TextAlign.End else TextAlign.Start,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.clickable(enabled = track != null) { track?.let { onArtist(it.artist) } },
-        )
+        AnimatedContent(
+            targetState = track?.artist?.uppercase() ?: "NO TRACK",
+            transitionSpec = {
+                (fadeIn(tween(180)) + scaleIn(initialScale = .96f, animationSpec = tween(180))) togetherWith
+                    (fadeOut(tween(140)) + scaleOut(targetScale = .96f, animationSpec = tween(140)))
+            },
+            label = "artistNameTransition",
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer { translationX = artistTranslationX }
+                .clickable(enabled = track != null) { track?.let { onArtist(it.artist) } },
+        ) { artistName ->
+            Text(
+                artistName,
+                color = SonarText,
+                fontSize = if (artistName.length > 20) 18.4.sp else 22.4.sp,
+                fontFamily = PlayerDisplayFont,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 1.sp,
+                maxLines = 2,
+                textAlign = if (alignEnd) TextAlign.End else TextAlign.Start,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -871,6 +922,7 @@ private fun PlayerScrubber(
 ) {
     val safeDuration = duration.coerceAtLeast(1L).toFloat()
     var dragging by remember { mutableStateOf(false) }
+    var pendingValue by remember(value) { mutableFloatStateOf(value) }
     val thumbScale by animateFloatAsState(if (dragging) 1.25f else 1f, animationSpec = tween(200, easing = SpringBounce), label = "sliderThumbZoom")
     val animatedAccent by animateColorAsState(accent, animationSpec = tween(600, easing = ExpressiveEasing), label = "sliderAccent")
     Box(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 12.dp).height(18.dp)) {
@@ -913,8 +965,8 @@ private fun PlayerScrubber(
         }
         Slider(
             value = value,
-            onValueChange = { next -> dragging = true; onSeeking(true); onValueChange(next) },
-            onValueChangeFinished = { onSeek(value.toLong()); dragging = false; onSeeking(false) },
+            onValueChange = { next -> pendingValue = next; dragging = true; onSeeking(true); onValueChange(next) },
+            onValueChangeFinished = { onSeek(pendingValue.toLong()); dragging = false; onSeeking(false) },
             valueRange = 0f..safeDuration,
             enabled = enabled,
             colors = SliderDefaults.colors(
@@ -973,6 +1025,7 @@ private fun SettingsScreen(
     importing: Boolean,
     onImport: () -> Unit,
     onBack: () -> Unit,
+    onAbout: () -> Unit,
     onHighResolution: (Boolean) -> Unit,
     onResumeAfterFocusLoss: (Boolean) -> Unit,
     onVolume: (Float) -> Unit,
@@ -1004,6 +1057,81 @@ private fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth().padding(top = 22.dp),
             ) {
                 Text(if (importing) "СКАНИРОВАНИЕ..." else "ВЫБРАТЬ ПАПКУ С АУДИО")
+            }
+            Spacer(Modifier.weight(1f))
+            Surface(
+                color = Color.White.copy(alpha = .06f),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onAbout),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("О ПРОГРАММЕ", fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                        Text("Sonar music player", color = SonarMuted, fontSize = 12.sp)
+                    }
+                    Icon(Icons.Rounded.KeyboardArrowRight, contentDescription = "О программе", tint = SonarMuted)
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+    }
+}
+
+@Composable
+private fun AboutScreen(
+    context: Context,
+    onBack: () -> Unit,
+) {
+    Scaffold(containerColor = SonarElevated) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Header(
+                title = "О ПРОГРАММЕ",
+                subtitle = "SONAR MUSIC PLAYER",
+                leading = { IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Назад") } },
+                actions = {},
+            )
+            Spacer(Modifier.height(30.dp))
+            AssetImage(
+                assetPath = "logo.png",
+                contentDescription = "Sonar logo",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 340.dp)
+                    .aspectRatio(4f),
+            )
+            Spacer(Modifier.height(20.dp))
+            Text("v1.0", fontFamily = RubikFont, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+            Text("Sonar music player", color = SonarMuted, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
+            Spacer(Modifier.height(32.dp))
+            Surface(
+                color = Color.White.copy(alpha = .06f),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/norealist/sonar")))
+                    },
+            ) {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                    Text("Исходный код", fontFamily = RubikFont, fontWeight = FontWeight.ExtraBold)
+                    Text(
+                        "https://github.com/norealist/sonar",
+                        color = SonarMuted,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
             }
         }
     }
