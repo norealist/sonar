@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sonar Player - Главный Экран</title>
+
+  <!-- Google Fonts: Syne, Plus Jakarta Sans & Rubik -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Rubik:wght@700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  
+  <!-- Material Symbols Outlined & Rounded -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+  <!-- Main Screen Stylesheet -->
+  <link rel="stylesheet" href="main.css">
+</head>
+<body>
+
+  <!-- Top Desktop Control Toolbar -->
+  <header class="desktop-toolbar">
+    <div class="brand">
+      <span class="material-symbols-rounded logo-icon">graphic_eq</span>
+      <span class="brand-name">SONAR M3 MAIN SCREEN</span>
+    </div>
+    
+    <div class="view-controls">
+      <!-- Device Selector Dropdown -->
+      <div class="device-select-wrapper">
+        <span class="material-symbols-rounded select-icon">devices</span>
+        <select id="deviceSelector" class="device-select" aria-label="Выбор устройства">
+          <option value="phone">Android Phone (360×800)</option>
+          <option value="ipad-pro">iPad Pro 11" (1194×834)</option>
+          <option value="ipad-mini">iPad Mini (1024×768)</option>
+          <option value="android-tablet">Android Tablet (1280×800)</option>
+        </select>
+      </div>
+
+      <!-- Orientation Toggle Button -->
+      <button id="toggleOrientationBtn" class="tool-btn" title="Переключить ориентацию (Портрет / Альбом)">
+        <span class="material-symbols-rounded">screen_rotation</span>
+        <span id="orientText">Портрет 📱</span>
+      </button>
+
+      <!-- Window Switcher Buttons -->
+      <a href="index.html" class="tool-btn view-switch-btn" title="Перейти в плеер">
+        <span class="material-symbols-rounded">play_circle</span>
+        <span>Экран Плеера 🎵</span>
+      </a>
+
+      <a href="artist.html" class="tool-btn view-switch-btn" title="Перейти на страницу артиста">
+        <span class="material-symbols-rounded">mic</span>
+        <span>Экран Артиста 🎤</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Viewport Workspace -->
+  <main class="app-viewport">
+    
+    <!-- Gadget Phone / Tablet Frame Wrapper -->
+    <div class="phone-frame device-phone portrait-frame" id="phoneFrame">
+      
+      <!-- Gadget Screen Content Area (Background: #26252a) -->
+      <div class="phone-screen portrait" id="phoneScreen">
+        
+        <!-- System Android Status Bar (Semi-Transparent Overlaid) -->
+        <div class="android-status-bar">
+          <span class="time-text" id="clockDisplay">12:00</span>
+          <div class="status-icons">
+            <span class="material-symbols-rounded status-icon">wifi</span>
+            <span class="material-symbols-rounded status-icon">signal_cellular_alt</span>
+            <span class="material-symbols-rounded status-icon">battery_full</span>
+          </div>
+        </div>
+
+        <!-- Main Screen Scrollable Content -->
+        <div class="main-screen-container">
+
+          <!-- Header Bar (Logo & Settings Icon) -->
+          <div class="main-header">
+            <div class="main-logo-group">
+              <div class="main-logo-box">
+                <img src="logo2.png" alt="SONAR" class="main-logo-img">
+              </div>
+              <span class="main-logo-text">SONAR</span>
+            </div>
+            <button class="settings-btn" id="settingsBtn" title="Настройки">
+              <span class="material-symbols-rounded">settings</span>
+            </button>
+          </div>
+
+          <!-- Section Subheader Row (ТРЕКИ НА УСТРОЙСТВЕ, АРТИСТЫ & View Mode) -->
+          <div class="section-subheader">
+            <span class="subheader-title" id="tracksCountTitle">ТРЕКИ НА УСТРОЙСТВЕ (21)</span>
+            
+            <div class="subheader-controls">
+              <button class="filter-btn" id="artistsFilterBtn" title="Сортировка по артистам">
+                <span>СОРТИРОВАТЬ</span>
+                <span class="material-symbols-rounded">sort</span>
+              </button>
+
+              <div class="view-mode-toggle" id="viewModeToggle" title="Зажмите на 250мс для настройки сетки">
+                <button class="view-mode-btn" id="toggleGridViewBtn" title="Вид: Плитки">
+                  <span class="material-symbols-rounded">grid_view</span>
+                </button>
+                <button class="view-mode-btn active" id="toggleListViewBtn" title="Вид: Список">
+                  <span class="material-symbols-rounded">format_list_bulleted</span>
+                </button>
+
+                <!-- Grid Columns Configurator Popout -->
+                <div class="grid-columns-popout" id="gridColumnsPopout">
+                  <div class="popout-header">
+                    <span class="popout-title">Сетка плиток</span>
+                    <span class="popout-val" id="gridColsVal">4 в ряд</span>
+                  </div>
+                  <input type="range" id="gridColumnsRange" min="2" max="12" value="4" step="1" aria-label="Количество плиток в ряду">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Track List Container (Grouped by Artist Dividers) -->
+          <div class="tracks-list-container" id="tracksListContainer">
+            <!-- Dynamically populated from tracks.json -->
+          </div>
+
+        </div> <!-- End main-screen-container -->
+
+        <!-- System Android Navigation Panel -->
+        <div class="android-navigation-panel">
+          <div class="nav-content-buttons">
+            <button class="nav-sys-btn" title="Назад">
+              <span class="material-symbols-rounded nav-icon">chevron_left</span>
+            </button>
+            <button class="nav-sys-btn" title="Домой">
+              <span class="material-symbols-rounded nav-icon">circle</span>
+            </button>
+            <button class="nav-sys-btn" title="Недавние">
+              <span class="material-symbols-rounded nav-icon">square</span>
+            </button>
+          </div>
+        </div>
+
+      </div> <!-- End phone-screen -->
+
+    </div> <!-- End phone-frame -->
+
+  </main>
+
+  <!-- Main Screen Script -->
+  <script src="main.js"></script>
+
+</body>
+</html>

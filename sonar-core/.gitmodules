@@ -1,0 +1,26 @@
+# Release tags: Ogg v1.3.6, Opus v1.6.1, Opusfile v0.12, Vorbis v1.3.7, FLAC 1.5.0.
+# Exact resolved commits and license provenance are recorded in THIRD_PARTY_NOTICES.md.
+[submodule "src/main/cpp/third_party/ogg"]
+	path = src/main/cpp/third_party/ogg
+	url = https://github.com/xiph/ogg.git
+	branch = v1.3.6
+
+[submodule "src/main/cpp/third_party/opus"]
+	path = src/main/cpp/third_party/opus
+	url = https://github.com/xiph/opus.git
+	branch = v1.6.1
+
+[submodule "src/main/cpp/third_party/opusfile"]
+	path = src/main/cpp/third_party/opusfile
+	url = https://github.com/xiph/opusfile.git
+	branch = v0.12
+
+[submodule "src/main/cpp/third_party/vorbis"]
+	path = src/main/cpp/third_party/vorbis
+	url = https://github.com/xiph/vorbis.git
+	branch = v1.3.7
+
+[submodule "src/main/cpp/third_party/flac"]
+	path = src/main/cpp/third_party/flac
+	url = https://github.com/xiph/flac.git
+	branch = 1.5.0

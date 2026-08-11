@@ -1,0 +1,10 @@
+.gradle/
+build/
+*/build/
+cpp_test/build/
+local.properties
+*.iml
+.idea/
+.cxx/
+captures/
+externalNativeBuild/

@@ -1,0 +1,40 @@
+# Gradle and Android build output
+.gradle/
+**/build/
+local.properties
+.externalNativeBuild/
+.cxx/
+*.aab
+*.apk
+
+# IDE and local tooling
+.idea/
+*.iml
+.vscode/
+.kilo/
+kilo-buildAndroidApp.cmd
+
+# Planning and preview-only design artifacts
+plan/
+sonar-example/
+ui/.agents/
+ui/.antigravitycli/
+ui/concept_makets/
+ui/playlist/
+ui/deezer-api-examples/
+ui/scan_music.py
+ui/start-server.cmd
+sonar-core/test_audio_files/
+
+# Web demo audio is not bundled or used as native persisted library data
+ui/music/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+.temp-fonts/
+*.tmp
+*.swp
