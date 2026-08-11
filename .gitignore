@@ -30,6 +30,9 @@ sonar-core/test_audio_files/
 # Web demo audio is not bundled or used as native persisted library data
 ui/music/
 
+# Web prototype is kept locally for design reference, not in the Android repository
+ui/
+
 # Operating system files
 .DS_Store
 Thumbs.db
