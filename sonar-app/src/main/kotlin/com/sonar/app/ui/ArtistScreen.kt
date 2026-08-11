@@ -66,9 +66,12 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import com.sonar.app.data.DeezerArtistInfo
+import com.sonar.app.data.DeezerArtistState
 import com.sonar.app.data.isPrimaryArtist
 import com.sonar.app.data.Track
 import com.sonar.app.data.trackIncludesArtist
+import com.sonar.app.data.info
 
 private val ArtistHeroShape = RoundedCornerShape(bottomStart = 40.dp, bottomEnd = 40.dp)
 private val ArtistWideHeroShape = RoundedCornerShape(28.dp)
@@ -81,13 +84,17 @@ private data class ArtistTrackGroup(
 
 private fun artistTrackGroups(artist: String, tracks: List<Track>): List<ArtistTrackGroup> {
     val (ownTracks, collaborationTracks) = tracks.partition { isPrimaryArtist(it.artist, artist) }
-    return buildList {
-        if (ownTracks.isNotEmpty()) {
-            add(ArtistTrackGroup("ТРЕКИ АРТИСТА", ArtistCatalog.singlesForTracks(artist, ownTracks), ownTracks))
-        }
-        if (collaborationTracks.isNotEmpty()) {
-            add(ArtistTrackGroup("СОВМЕСТНЫЕ ТРЕКИ", ArtistCatalog.singlesForTracks(artist, collaborationTracks), collaborationTracks))
-        }
+    val orderedTracks = ownTracks + collaborationTracks
+    return if (orderedTracks.isEmpty()) {
+        emptyList()
+    } else {
+        listOf(
+            ArtistTrackGroup(
+                title = "ТРЕКИ НА УСТРОЙСТВЕ",
+                singles = ArtistCatalog.singlesForTracks(artist, orderedTracks),
+                tracks = orderedTracks,
+            ),
+        )
     }
 }
 
@@ -100,12 +107,14 @@ fun ArtistScreen(
     onToggleGrid: () -> Unit,
     onTrack: (Track) -> Unit,
     context: Context,
+    deezerState: DeezerArtistState,
 ) {
     val view = LocalView.current
     val window = (context as? Activity)?.window
     val fallbackTrack = tracks.firstOrNull { !it.artworkPath.isNullOrBlank() } ?: tracks.firstOrNull()
     val heroAsset = ArtistCatalog.heroAssetFor(artist) ?: "artists/$artist.jpg"
-    val hero = rememberArtistArtwork(heroAsset, fallbackTrack)
+    val deezerInfo = deezerState.info
+    val hero = rememberArtistArtwork(heroAsset, fallbackTrack, deezerInfo?.cachedPicturePath)
     val palette = hero.palette
     val groups = artistTrackGroups(artist, tracks)
 
@@ -163,6 +172,7 @@ fun ArtistScreen(
                     hero = hero,
                     palette = palette,
                     groups = groups,
+                    deezerInfo = deezerInfo,
                     grid = grid,
                     onBack = onBack,
                     onToggleGrid = onToggleGrid,
@@ -175,6 +185,7 @@ fun ArtistScreen(
                     hero = hero,
                     palette = palette,
                     groups = groups,
+                    deezerInfo = deezerInfo,
                     context = context,
                     onBack = onBack,
                     onToggleGrid = onToggleGrid,
@@ -186,6 +197,7 @@ fun ArtistScreen(
                     hero = hero,
                     palette = palette,
                     groups = groups,
+                    deezerInfo = deezerInfo,
                     context = context,
                     onBack = onBack,
                     onToggleGrid = onToggleGrid,
@@ -202,6 +214,7 @@ private fun ArtistPortraitGrid(
     hero: ArtistArtwork,
     palette: ArtistPalette,
     groups: List<ArtistTrackGroup>,
+    deezerInfo: DeezerArtistInfo?,
     context: Context,
     onBack: () -> Unit,
     onToggleGrid: () -> Unit,
@@ -218,6 +231,7 @@ private fun ArtistPortraitGrid(
             ArtistStatsPill(
                 palette = palette,
                 artist = artist,
+                info = deezerInfo,
                 context = context,
                 modifier = Modifier.padding(start = 16.dp, top = 4.dp, end = 16.dp),
             )
@@ -262,6 +276,7 @@ private fun ArtistPortraitList(
     hero: ArtistArtwork,
     palette: ArtistPalette,
     groups: List<ArtistTrackGroup>,
+    deezerInfo: DeezerArtistInfo?,
     context: Context,
     onBack: () -> Unit,
     onToggleGrid: () -> Unit,
@@ -278,6 +293,7 @@ private fun ArtistPortraitList(
             ArtistStatsPill(
                 palette = palette,
                 artist = artist,
+                info = deezerInfo,
                 context = context,
                 modifier = Modifier.padding(start = 16.dp, top = 4.dp, end = 16.dp),
             )
@@ -310,6 +326,7 @@ private fun ArtistExpandedLayout(
     hero: ArtistArtwork,
     palette: ArtistPalette,
     groups: List<ArtistTrackGroup>,
+    deezerInfo: DeezerArtistInfo?,
     grid: Boolean,
     context: Context,
     onBack: () -> Unit,
@@ -328,7 +345,7 @@ private fun ArtistExpandedLayout(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             ArtistHeroCard(artist, hero, onBack, ArtistWideHeroShape)
-            ArtistStatsPill(palette, artist, context, Modifier.fillMaxWidth())
+            ArtistStatsPill(palette, artist, deezerInfo, context, Modifier.fillMaxWidth())
         }
         if (grid) {
             LazyVerticalGrid(
@@ -456,10 +473,14 @@ private fun ArtistHeroCard(
 private fun ArtistStatsPill(
     palette: ArtistPalette,
     artist: String,
+    info: DeezerArtistInfo?,
     context: Context,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(20.dp)
+    val shape = RoundedCornerShape(26.dp)
+    val fans = info?.nbFan?.let(::formatDeezerFans) ?: "0"
+    val albums = info?.nbAlbum?.toString() ?: "0"
+    val deezerLink = info?.link ?: "https://www.deezer.com/search/${Uri.encode(artist)}"
     Surface(
         color = Color.White.copy(alpha = .88f),
         shape = shape,
@@ -472,25 +493,31 @@ private fun ArtistStatsPill(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ArtistStat("0", Icons.Rounded.Person)
-            ArtistStat("0", Icons.Rounded.Album)
+            ArtistStat(fans, Icons.Rounded.Person)
+            ArtistStat(albums, Icons.Rounded.Album)
             Spacer(Modifier.weight(1f))
             Surface(
                 color = palette.deezer,
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
-                    .size(width = 88.dp, height = 40.dp)
+                    .size(width = 110.dp, height = 36.dp)
                     .clickable {
-                        val uri = Uri.parse("https://www.deezer.com/search/${Uri.encode(artist)}")
+                        val uri = Uri.parse(deezerLink)
                         context.startActivity(Intent(Intent.ACTION_VIEW, uri))
                     },
             ) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    AssetImage("deezer-logo.png", "Deezer", Modifier.width(64.dp).height(26.dp))
+                    AssetImage("deezer-logo.png", "Deezer", Modifier.width(80.dp).height(22.dp))
                 }
             }
         }
     }
+}
+
+private fun formatDeezerFans(value: Long): String = when {
+    value >= 1_000_000 -> "${"%.1f".format(java.util.Locale.US, value / 1_000_000.0)}m"
+    value >= 1_000 -> "${"%.1f".format(java.util.Locale.US, value / 1_000.0)}k"
+    else -> value.toString()
 }
 
 @Composable
@@ -542,7 +569,7 @@ private fun ArtistStat(value: String, icon: androidx.compose.ui.graphics.vector.
             value,
             color = Color(0xFF121418),
             fontSize = 22.4.sp,
-            fontFamily = PlayerBodyFont,
+            fontFamily = RubikFont,
             fontWeight = FontWeight.ExtraBold,
         )
         Icon(icon, contentDescription = null, tint = Color(0xFF121418), modifier = Modifier.size(22.dp))
@@ -569,7 +596,9 @@ private fun ArtistTile(
         colors = CardDefaults.cardColors(containerColor = tileSurface),
         shape = shape,
         border = BorderStroke(1.dp, tileBorder),
-        modifier = modifier.shadow(14.dp, shape, ambientColor = Color.Black.copy(alpha = .4f), spotColor = Color.Black.copy(alpha = .4f)),
+        modifier = modifier
+            .shadow(14.dp, shape, ambientColor = Color.Black.copy(alpha = .4f), spotColor = Color.Black.copy(alpha = .4f))
+            .shadow(1.dp, shape, ambientColor = Color.White.copy(alpha = .06f), spotColor = Color.White.copy(alpha = .06f)),
     ) {
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             ArtistArtworkBox(artwork, Modifier.fillMaxWidth().aspectRatio(1f), 18.dp)

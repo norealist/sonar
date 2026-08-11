@@ -203,13 +203,13 @@ fun TrackRow(
             .semantics { contentDescription = "Play ${track.title} by ${track.artist}" },
     ) {
         Row(
-            modifier = Modifier.padding(10.dp),
+            modifier = Modifier.padding(start = 10.dp, top = 10.dp, end = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Artwork(track, Modifier.size(65.dp), 14.dp)
             Spacer(Modifier.width(13.dp))
             Column(Modifier.weight(1f)) {
-                Text(track.title, fontWeight = FontWeight.ExtraBold, fontSize = 15.7.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(track.title, fontFamily = RubikFont, fontWeight = FontWeight.ExtraBold, fontSize = 15.7.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     text = track.artist,
                     color = if (selected) SonarGreen else SonarMuted,
@@ -259,7 +259,6 @@ fun formatMs(value: Long): String {
 fun trackMeta(track: Track): String = listOfNotNull(
     track.codec?.uppercase(),
     track.sourceBitDepth?.let { "$it BIT" },
-    track.bitrateKbps?.let { "$it KB/S" },
     track.sampleRate?.let { "%.1f KHZ".format(it / 1000f) },
 ).joinToString(" • ").ifBlank { "LOCAL AUDIO" }
 

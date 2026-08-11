@@ -7,6 +7,8 @@ import android.provider.DocumentsContract
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.sonar.app.data.AppScreen
+import com.sonar.app.data.DeezerArtistRepository
+import com.sonar.app.data.DeezerArtistState
 import com.sonar.app.data.primaryArtist
 import com.sonar.app.data.LibraryRepository
 import com.sonar.app.data.MediaMetadataRepository
@@ -18,6 +20,7 @@ import com.sonar.app.data.Track
 import com.sonar.app.player.AppPlayerController
 import com.sonar.app.player.PlayerUiState
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +32,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val library: LibraryRepository = PersistentLibraryRepository(application)
     val settings: SettingsRepository = PersistentSettingsRepository(application)
     private val metadata = MediaMetadataRepository(application)
+    private val deezerArtists = DeezerArtistRepository(application)
     val controller = AppPlayerController(application, settings)
 
     private val mutableScreen = MutableStateFlow(AppScreen.LIBRARY)
@@ -36,6 +40,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     private val mutableImporting = MutableStateFlow(false)
     private val mutableError = MutableStateFlow<String?>(null)
     private val mutableLastSelectedTrack = MutableStateFlow<Track?>(null)
+    private val mutableDeezerArtist = MutableStateFlow<DeezerArtistState>(DeezerArtistState.Idle)
+    private var deezerJob: Job? = null
 
     val screen: StateFlow<AppScreen> = mutableScreen.asStateFlow()
     val selectedArtist: StateFlow<String?> = mutableArtist.asStateFlow()
@@ -43,6 +49,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val error: StateFlow<String?> = mutableError.asStateFlow()
     val player: StateFlow<PlayerUiState> = controller.state
     val lastSelectedTrack: StateFlow<Track?> = mutableLastSelectedTrack.asStateFlow()
+    val deezerArtist: StateFlow<DeezerArtistState> = mutableDeezerArtist.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -61,7 +68,13 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun openArtist(artist: String) {
-        mutableArtist.value = primaryArtist(artist)
+        val selectedArtist = primaryArtist(artist)
+        mutableArtist.value = selectedArtist
+        deezerJob?.cancel()
+        mutableDeezerArtist.value = DeezerArtistState.Loading(deezerArtists.cachedArtist(selectedArtist))
+        deezerJob = viewModelScope.launch {
+            mutableDeezerArtist.value = deezerArtists.loadArtist(selectedArtist)
+        }
         mutableScreen.value = AppScreen.ARTIST
     }
 
@@ -97,9 +110,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     durationMs = extracted.durationMs,
                     artworkPath = extracted.artworkPath,
                     codec = extracted.codec,
-                            bitrateKbps = extracted.bitrateKbps,
-                            sampleRate = extracted.sampleRate,
-                            createdAt = System.currentTimeMillis(),
+                    bitrateKbps = extracted.bitrateKbps,
+                    sourceBitDepth = extracted.sourceBitDepth,
+                    sampleRate = extracted.sampleRate,
+                    createdAt = System.currentTimeMillis(),
                 )
             }
         }

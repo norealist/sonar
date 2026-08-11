@@ -3,6 +3,7 @@ package com.sonar.app.data
 import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.Build
 import java.io.File
 import java.security.MessageDigest
 import kotlinx.coroutines.Dispatchers
@@ -16,6 +17,7 @@ data class ExtractedMetadata(
     val artworkPath: String?,
     val codec: String?,
     val bitrateKbps: Int?,
+    val sourceBitDepth: Int?,
     val sampleRate: Int?,
 )
 
@@ -48,10 +50,15 @@ class MediaMetadataRepository(context: Context) : MetadataRepository {
                 codec = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE)
                     ?.substringAfterLast('/')?.uppercase(),
                 bitrateKbps = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull()?.div(1000),
+                sourceBitDepth = if (Build.VERSION.SDK_INT >= 29) {
+                    retriever.metadata(METADATA_KEY_BITS_PER_SAMPLE)?.toIntOrNull()
+                } else {
+                    null
+                },
                 sampleRate = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)?.toIntOrNull(),
             )
         } catch (_: Throwable) {
-            ExtractedMetadata(fallbackTitle, "Unknown artist", "Unknown album", 0L, null, null, null, null)
+            ExtractedMetadata(fallbackTitle, "Unknown artist", "Unknown album", 0L, null, null, null, null, null)
         } finally {
             runCatching { retriever.release() }
         }
@@ -68,4 +75,8 @@ class MediaMetadataRepository(context: Context) : MetadataRepository {
 
     private fun MediaMetadataRetriever.metadata(key: Int): String? =
         extractMetadata(key)?.takeIf { it.isNotBlank() }
+
+    private companion object {
+        const val METADATA_KEY_BITS_PER_SAMPLE = 39
+    }
 }

@@ -156,6 +156,7 @@ fun SonarApp(
     val player by viewModel.player.collectAsStateWithLifecycle()
     val lastSelectedTrack by viewModel.lastSelectedTrack.collectAsStateWithLifecycle()
     val artist by viewModel.selectedArtist.collectAsStateWithLifecycle()
+    val deezerArtist by viewModel.deezerArtist.collectAsStateWithLifecycle()
     val importing by viewModel.isImporting.collectAsStateWithLifecycle()
     val appError by viewModel.error.collectAsStateWithLifecycle()
     val miniTrack = player.selectedTrack ?: lastSelectedTrack ?: library.tracks.firstOrNull { it.id == settings.selectedTrackId }
@@ -261,6 +262,7 @@ fun SonarApp(
                     onToggleGrid = { viewModel.settings.update { it.copy(artistGrid = !it.artistGrid) } },
                     onTrack = viewModel::playTrack,
                     context = context,
+                    deezerState = deezerArtist,
                 )
             }
             AnimatedVisibility(

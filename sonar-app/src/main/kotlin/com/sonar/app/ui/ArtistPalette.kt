@@ -32,12 +32,18 @@ data class ArtistTilePalette(
 )
 
 @Composable
-fun rememberArtistArtwork(assetPath: String, fallbackTrack: Track? = null): ArtistArtwork {
+fun rememberArtistArtwork(
+    assetPath: String,
+    fallbackTrack: Track? = null,
+    cachedFilePath: String? = null,
+): ArtistArtwork {
     val context = LocalContext.current
     var artwork by remember { mutableStateOf(ArtistArtwork(null, ArtistPalette())) }
-    LaunchedEffect(assetPath, fallbackTrack?.id) {
+    LaunchedEffect(assetPath, fallbackTrack?.id, cachedFilePath) {
         artwork = ArtistArtwork(null, ArtistPalette())
-        artwork = loadArtistArtwork(context, assetPath)
+        artwork = cachedFilePath?.let { loadCachedArtistArtwork(it) }
+            ?.takeIf { it.bitmap != null }
+            ?: loadArtistArtwork(context, assetPath)
             .takeIf { it.bitmap != null }
             ?: loadFallbackArtistArtwork(context, fallbackTrack)
     }
@@ -46,6 +52,11 @@ fun rememberArtistArtwork(assetPath: String, fallbackTrack: Track? = null): Arti
 
 private suspend fun loadArtistArtwork(context: Context, assetPath: String): ArtistArtwork = withContext(Dispatchers.IO) {
     val bitmap = runCatching { context.assets.open(assetPath).use(BitmapFactory::decodeStream) }.getOrNull()
+    ArtistArtwork(bitmap, bitmap?.let(::extractArtistPalette) ?: ArtistPalette())
+}
+
+private suspend fun loadCachedArtistArtwork(path: String): ArtistArtwork = withContext(Dispatchers.IO) {
+    val bitmap = runCatching { BitmapFactory.decodeFile(path) }.getOrNull()
     ArtistArtwork(bitmap, bitmap?.let(::extractArtistPalette) ?: ArtistPalette())
 }
 
