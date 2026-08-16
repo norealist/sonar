@@ -2,6 +2,15 @@
 
 Sonar is a native Android music player focused on local audio playback and a custom audio pipeline.
 
+---
+
+<p align="center">
+  <img src="repo-content/phone.png" width="200">
+  <img src="repo-content/tablet.png" width="600">
+</p>
+
+---
+
 ## Current Features
 
 - Local library import from a selected directory.
