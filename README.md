@@ -82,7 +82,6 @@ Deezer track playback and remote track importing are not implemented.
 Android runtime assets are stored inside `sonar-app` and are independent from the local visual prototype:
 
 ```text
-sonar-app/src/main/assets/logo.png
 sonar-app/src/main/assets/logo2.png
 sonar-app/src/main/assets/deezer-logo.png
 sonar-app/src/main/res/font/doto_black.ttf
@@ -115,6 +114,17 @@ The debug APK is generated at:
 ```text
 sonar-app/build/outputs/apk/debug/sonar-app-debug.apk
 ```
+
+## License
+
+Sonar's original code and assets are licensed under the Apache License, Version 2.0.
+
+Copyright 2026 norealist.
+
+See [LICENSE](LICENSE) for the full license text. Third-party libraries and fonts
+remain under their respective licenses; see `sonar-core/THIRD_PARTY_NOTICES.md`
+and the font license files in `sonar-app/src/main/assets/licenses`. See [NOTICE](NOTICE)
+for the Deezer trademark and branding notice.
 
 ## Current Limitations
 
