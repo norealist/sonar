@@ -432,8 +432,8 @@ private fun LibraryScreen(
         Box(Modifier.fillMaxSize().padding(padding)) {
             Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
             Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                AssetImage("logo2.png", "SONAR logo", Modifier.size(36.dp), ColorFilter.tint(Color.White))
-                Text("SONAR", color = Color.White, fontFamily = SonarLogoFont, fontSize = 35.2.sp, fontWeight = FontWeight.Normal, letterSpacing = 5.sp, modifier = Modifier.weight(1f).padding(start = 14.dp))
+                AssetImage("logo2.png", "SONAR logo", Modifier.size(28.dp), ColorFilter.tint(Color.White))
+                Text("SONAR", color = Color.White, fontFamily = SonarLogoFont, fontSize = 35.2.sp, fontWeight = FontWeight.Black, letterSpacing = 5.sp, modifier = Modifier.weight(1f).padding(start = 14.dp))
                 IconButton(onClick = { searchOpen = !searchOpen }, modifier = Modifier.size(40.dp)) {
                     Icon(if (searchOpen) Icons.Rounded.Close else Icons.Rounded.Search, if (searchOpen) "Закрыть поиск" else "Поиск", tint = Color.White, modifier = Modifier.size(25.dp))
                 }
@@ -1102,14 +1102,22 @@ private fun AboutScreen(
                 actions = {},
             )
             Spacer(Modifier.height(30.dp))
-            AssetImage(
-                assetPath = "logo.png",
-                contentDescription = "Sonar logo",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 340.dp)
-                    .aspectRatio(4f),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AssetImage("logo2.png", "SONAR logo", Modifier.size(28.dp), ColorFilter.tint(Color.White))
+                Text(
+                    "SONAR",
+                    color = Color.White,
+                    fontFamily = SonarLogoFont,
+                    fontSize = 35.2.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 5.sp,
+                    modifier = Modifier.padding(start = 14.dp),
+                )
+            }
             Spacer(Modifier.height(20.dp))
             Text("v1.0", fontFamily = RubikFont, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
             Text("Sonar music player", color = SonarMuted, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))

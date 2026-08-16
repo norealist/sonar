@@ -6,6 +6,7 @@ data class ArtistSingle(
     val artist: String,
     val title: String,
     val coverAsset: String,
+    val trackId: String? = null,
 )
 
 object ArtistCatalog {
@@ -36,7 +37,7 @@ object ArtistCatalog {
     }
 
     fun singlesForTracks(artist: String, tracks: List<Track>): List<ArtistSingle> {
-        return tracks.map { track -> ArtistSingle(artist, track.title, track.artworkPath.orEmpty()) }
+        return tracks.map { track -> ArtistSingle(artist, track.title, track.artworkPath.orEmpty(), track.id) }
     }
 
     fun heroAssetFor(artist: String): String? = when {

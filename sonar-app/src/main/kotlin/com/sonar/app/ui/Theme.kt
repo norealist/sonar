@@ -43,7 +43,7 @@ private val SonarColors = darkColorScheme(
     outline = SonarOutline,
 )
 
-val SonarLogoFont = FontFamily(Font(R.font.disco, FontWeight.Normal))
+val SonarLogoFont = FontFamily(Font(R.font.doto_black, FontWeight.Black))
 
 val PlayerBodyFont = FontFamily(
     Font(R.font.plus_jakarta_sans_regular, FontWeight.Normal),
@@ -76,7 +76,7 @@ val PlayerDisplayFont = FontFamily(
 )
 
 private val SonarTypography = Typography(
-    displayLarge = TextStyle(fontFamily = SonarLogoFont, fontSize = 32.sp, letterSpacing = 4.sp),
+    displayLarge = TextStyle(fontFamily = SonarLogoFont, fontSize = 32.sp, fontWeight = FontWeight.Black, letterSpacing = 4.sp),
 )
 
 @Composable
