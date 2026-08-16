@@ -85,7 +85,7 @@ Android runtime assets are stored inside `sonar-app` and are independent from th
 sonar-app/src/main/assets/logo.png
 sonar-app/src/main/assets/logo2.png
 sonar-app/src/main/assets/deezer-logo.png
-sonar-app/src/main/res/font/disco.ttf
+sonar-app/src/main/res/font/doto_black.ttf
 ```
 
 The former repository-level `ui/` directory is ignored by Git and remains available locally as a design/reference workspace. It is not required for an Android build.

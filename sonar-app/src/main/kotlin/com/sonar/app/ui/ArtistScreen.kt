@@ -307,7 +307,7 @@ private fun ArtistPortraitList(
                     showToggle = groupIndex == 0,
                 )
             }
-            columnItems(group.singles, key = { "list:$groupIndex:${it.artist}:${it.title}" }) { single ->
+            columnItems(group.singles, key = { "list:$groupIndex:${it.trackId ?: "${it.artist}:${it.title}:${it.coverAsset}"}" }) { single ->
                 ArtistList(
                     single = single,
                     playable = playableTrack(single, group.tracks),
@@ -365,7 +365,7 @@ private fun ArtistExpandedLayout(
                             showToggle = groupIndex == 0,
                         )
                     }
-                    gridItems(group.singles, key = { "grid:$groupIndex:${it.artist}:${it.title}" }) { single ->
+                    gridItems(group.singles, key = { "grid:$groupIndex:${it.trackId ?: "${it.artist}:${it.title}:${it.coverAsset}"}" }) { single ->
                         ArtistTile(
                             single = single,
                             playable = playableTrack(single, group.tracks),
@@ -391,7 +391,7 @@ private fun ArtistExpandedLayout(
                             showToggle = groupIndex == 0,
                         )
                     }
-                    columnItems(group.singles, key = { "list:$groupIndex:${it.artist}:${it.title}" }) { single ->
+                    columnItems(group.singles, key = { "list:$groupIndex:${it.trackId ?: "${it.artist}:${it.title}:${it.coverAsset}"}" }) { single ->
                         ArtistList(
                             single = single,
                             playable = playableTrack(single, group.tracks),
@@ -721,7 +721,9 @@ private fun ArtistArtworkBox(
     }
 }
 
-private fun playableTrack(single: ArtistSingle, tracks: List<Track>): Track? = tracks.firstOrNull {
-    it.title.equals(single.title, ignoreCase = true) &&
-        trackIncludesArtist(it.artist, single.artist)
-}
+private fun playableTrack(single: ArtistSingle, tracks: List<Track>): Track? =
+    single.trackId?.let { trackId -> tracks.firstOrNull { it.id == trackId } }
+        ?: tracks.firstOrNull {
+            it.title.equals(single.title, ignoreCase = true) &&
+                trackIncludesArtist(it.artist, single.artist)
+        }
