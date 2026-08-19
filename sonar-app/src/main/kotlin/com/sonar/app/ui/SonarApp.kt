@@ -90,6 +90,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -474,6 +475,17 @@ private fun LibraryScreen(
                         if (searchQuery.isNotEmpty()) IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Rounded.Close, stringResource(R.string.btn_clear)) }
                     },
                     shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color.White.copy(alpha = .35f),
+                        unfocusedBorderColor = Color.White.copy(alpha = .12f),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedLeadingIconColor = Color.White,
+                        unfocusedLeadingIconColor = SonarMuted,
+                        focusedTrailingIconColor = Color.White,
+                        unfocusedTrailingIconColor = SonarMuted,
+                        cursorColor = Color.White,
+                    ),
                 )
             }
             Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp).padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
