@@ -33,6 +33,8 @@ class PersistentSettingsRepository(context: Context) : SettingsRepository {
             .putBoolean("shuffle", next.shuffle)
             .putString("selectedTrackId", next.selectedTrackId)
             .putInt("selectedIndex", next.selectedIndex)
+            .putString("language", next.language.name)
+            .putBoolean("hapticFeedback", next.hapticFeedback)
             .apply()
     }
 
@@ -52,5 +54,9 @@ class PersistentSettingsRepository(context: Context) : SettingsRepository {
         shuffle = preferences.getBoolean("shuffle", false),
         selectedTrackId = preferences.getString("selectedTrackId", null),
         selectedIndex = preferences.getInt("selectedIndex", 0),
+        language = runCatching {
+            AppLanguage.valueOf(preferences.getString("language", AppLanguage.SYSTEM.name)!!)
+        }.getOrDefault(AppLanguage.SYSTEM),
+        hapticFeedback = preferences.getBoolean("hapticFeedback", true),
     )
 }

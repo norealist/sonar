@@ -53,6 +53,12 @@ enum class Sheet {
     SLEEP_TIMER,
 }
 
+enum class AppLanguage(val code: String) {
+    SYSTEM("system"),
+    RU("ru"),
+    EN("en"),
+}
+
 data class AppSettings(
     val highResolutionOutput: Boolean = false,
     val resumeAfterFocusLoss: Boolean = true,
@@ -65,6 +71,8 @@ data class AppSettings(
     val shuffle: Boolean = false,
     val selectedTrackId: String? = null,
     val selectedIndex: Int = 0,
+    val language: AppLanguage = AppLanguage.SYSTEM,
+    val hapticFeedback: Boolean = true,
 )
 
 data class SleepTimerState(

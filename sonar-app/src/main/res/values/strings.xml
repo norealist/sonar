@@ -1,3 +1,112 @@
 <resources>
     <string name="app_name">Sonar</string>
+    <string name="default_favorites_playlist">Favorites</string>
+    <string name="untitled_track">Untitled</string>
+    <string name="unknown_artist">Unknown artist</string>
+    <string name="unknown_album">Unknown album</string>
+    <string name="local_audio">Local audio</string>
+
+    <!-- Navigation & Common -->
+    <string name="btn_back">Back</string>
+    <string name="btn_close">Close</string>
+    <string name="btn_ok">OK</string>
+    <string name="btn_clear">Clear</string>
+
+    <!-- Library Screen -->
+    <string name="library_title_tracks">Tracks on device</string>
+    <string name="library_tracks_count_header">TRACKS ON DEVICE (%1$d)</string>
+    <string name="search_hint">File name, track or artist</string>
+    <string name="search_open">Search</string>
+    <string name="search_close">Close search</string>
+    <string name="search_empty_title">Nothing found</string>
+    <string name="search_empty_subtitle">Try changing your query</string>
+    <string name="btn_sort">SORT</string>
+    <string name="sort_title">SORT</string>
+    <string name="sort_artist_asc">ARTIST A-Z</string>
+    <string name="sort_artist_desc">ARTIST Z-A</string>
+    <string name="sort_name_asc">A-Z</string>
+    <string name="sort_name_desc">Z-A</string>
+    <string name="sort_created_desc">NEWEST FIRST</string>
+    <string name="sort_created_asc">OLDEST FIRST</string>
+    <string name="grid_settings_title">Grid layout</string>
+    <string name="grid_columns_in_row">%1$d per row</string>
+    <string name="library_empty_title">Your library is quiet</string>
+    <string name="library_empty_subtitle">Select your Music folder or any folder with audio. Subdirectories will also be scanned.</string>
+    <string name="btn_select_folder">Select folder</string>
+    <string name="btn_select_audio_folder">SELECT AUDIO FOLDER</string>
+    <string name="state_scanning">Scanning...</string>
+    <string name="state_scanning_caps">SCANNING...</string>
+    <string name="view_grid">Grid view</string>
+    <string name="view_list">List view</string>
+    <string name="track_row_play_desc">Play %1$s by %2$s</string>
+
+    <!-- Player Screen & MiniPlayer -->
+    <string name="player_no_track">Select a track</string>
+    <string name="player_no_artist">NO TRACK</string>
+    <string name="player_track_index">TRACK %1$02d / %2$02d</string>
+    <string name="player_track_index_empty">TRACK 00 / 00</string>
+    <string name="cd_play_or_pause">Play or pause</string>
+    <string name="cd_play">Play</string>
+    <string name="cd_pause">Pause</string>
+    <string name="cd_next">Next</string>
+    <string name="cd_previous">Previous</string>
+    <string name="cd_shuffle">Shuffle</string>
+    <string name="cd_repeat">Repeat</string>
+    <string name="cd_repeat_one">Repeat one</string>
+    <string name="cd_queue">Queue</string>
+    <string name="cd_sleep_timer_active">Sleep timer active</string>
+    <string name="cd_add_favorite">Add to %1$s</string>
+    <string name="cd_remove_favorite">Remove from %1$s</string>
+
+    <!-- Artist Screen -->
+    <string name="artist_tracks_on_device">TRACKS ON DEVICE</string>
+    <string name="artist_import_track">IMPORT TRACK</string>
+    <string name="artist_cd_artwork">Artwork for %1$s</string>
+
+    <!-- Queue Sheet -->
+    <string name="queue_title">PLAYBACK QUEUE</string>
+    <plurals name="queue_track_count">
+        <item quantity="one">%1$d TRACK</item>
+        <item quantity="other">%1$d TRACKS</item>
+    </plurals>
+
+    <!-- Sleep Timer Sheet -->
+    <string name="sleep_timer_title">SLEEP TIMER</string>
+    <string name="sleep_timer_stopping_in">Playback will stop in</string>
+    <string name="btn_turn_off">Turn off</string>
+    <string name="sleep_option_minutes">%1$d min</string>
+    <string name="sleep_option_one_hour">1 hour</string>
+    <string name="sleep_option_custom">Custom</string>
+    <string name="sleep_custom_minutes_label">Minutes</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">SETTINGS</string>
+    <string name="settings_subtitle_audio_session">AUDIO SESSION</string>
+    <string name="setting_high_res_title">High-resolution output</string>
+    <string name="setting_high_res_desc">Core negotiates the actual device encoding</string>
+    <string name="setting_audio_focus_title">Resume after audio focus loss</string>
+    <string name="setting_audio_focus_desc">Resume only when playback was active before focus changed</string>
+    <string name="setting_haptic_feedback_title">Haptic feedback</string>
+    <string name="setting_haptic_feedback_desc">Vibrate on mode switches and interactive controls</string>
+    <string name="setting_app_language_title">App language</string>
+    <string name="setting_app_language_desc">Interface language</string>
+    <string name="lang_system">System default</string>
+    <string name="lang_ru">Русский</string>
+    <string name="lang_en">English</string>
+    <string name="section_volume">VOLUME</string>
+    <string name="section_current_output">CURRENT OUTPUT</string>
+    <string name="output_negotiated_desc">Negotiated by AudioTrack. Hardware delivery may still be mixed or resampled by Android.</string>
+    <string name="output_session_id">Stable audio session: %1$d</string>
+    <string name="btn_about_app">ABOUT</string>
+    <string name="about_app_subtitle">Sonar music player</string>
+
+    <!-- About Screen -->
+    <string name="about_title">ABOUT</string>
+    <string name="about_subtitle">SONAR MUSIC PLAYER</string>
+    <string name="about_version">v1.1</string>
+    <string name="about_source_code">Source code</string>
+
+    <!-- Errors -->
+    <string name="err_no_audio_found">No audio found in the selected folder</string>
+    <string name="err_import_failed">Unable to import audio</string>
 </resources>

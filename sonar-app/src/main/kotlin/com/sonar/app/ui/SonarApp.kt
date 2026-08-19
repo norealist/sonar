@@ -3,10 +3,13 @@ package com.sonar.app.ui
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.sonar.app.HapticHelper
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
@@ -76,6 +79,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -85,6 +90,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -138,6 +144,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.sonar.app.R
+import com.sonar.app.data.AppLanguage
 import com.sonar.app.PlayerViewModel
 import com.sonar.app.data.AppScreen
 import com.sonar.app.data.DEFAULT_PLAYLIST_NAME
@@ -225,15 +236,19 @@ fun SonarApp(
                     SettingsScreen(
                         highResolution = settings.highResolutionOutput,
                         resumeAfterFocusLoss = settings.resumeAfterFocusLoss,
+                        hapticFeedback = settings.hapticFeedback,
                         volume = settings.volume,
                         outputDescription = player.outputDescription,
                         sessionId = player.audioSessionId,
+                        currentLanguage = settings.language,
                         importing = importing,
                         onImport = onPickAudio,
                         onBack = { viewModel.navigate(AppScreen.LIBRARY) },
                         onAbout = { viewModel.navigate(AppScreen.ABOUT) },
                         onHighResolution = viewModel::toggleHighResolution,
                         onResumeAfterFocusLoss = viewModel::setResumeAfterFocusLoss,
+                        onHapticFeedback = viewModel::setHapticFeedback,
+                        onLanguage = viewModel::setLanguage,
                         onVolume = viewModel.controller::setVolume,
                     )
                 }
@@ -262,7 +277,12 @@ fun SonarApp(
                     onSeek = viewModel.controller::seekTo,
                     onSeeking = viewModel.controller::setSeeking,
                     onSubTap = viewModel.controller::tapSubControl,
-                    onSubLongPress = viewModel.controller::toggleSubControlMode,
+                    onSubLongPress = {
+                        if (settings.hapticFeedback) {
+                            HapticHelper.performTick(context)
+                        }
+                        viewModel.controller.toggleSubControlMode()
+                    },
                     onTimer = { viewModel.setSheet(Sheet.SLEEP_TIMER) },
                     onQueue = { viewModel.setSheet(Sheet.QUEUE) },
                     onFavorite = viewModel::toggleFavorite,
@@ -369,11 +389,11 @@ private fun MiniPlayer(
         ) {
             Artwork(track, Modifier.size(48.dp), 12.dp)
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                Text(track.title, color = Color.White, fontFamily = PlayerDisplayFont, fontSize = 14.5.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(track.title, color = Color.White, fontFamily = displayFontFor(track.title), fontSize = 14.5.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(track.artist, color = Color.White.copy(alpha = .7f), fontFamily = PlayerBodyFont, fontSize = 11.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             IconButton(onClick = onToggle, modifier = Modifier.size(42.dp)) {
-                Icon(if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, "Play or pause", tint = Color.White, modifier = Modifier.size(26.dp))
+                Icon(if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, stringResource(R.string.cd_play_or_pause), tint = Color.White, modifier = Modifier.size(26.dp))
             }
         }
     }
@@ -382,13 +402,13 @@ private fun MiniPlayer(
 private val AppScreen.route: String
     get() = name.lowercase()
 
-private enum class LibrarySortMode(val label: String) {
-    NAME_ASC("A-Z"),
-    NAME_DESC("Z-A"),
-    ARTIST_ASC("АРТИСТ A-Z"),
-    ARTIST_DESC("АРТИСТ Z-A"),
-    CREATED_DESC("НОВОЕ → СТАРОЕ"),
-    CREATED_ASC("СТАРОЕ → НОВОЕ"),
+private enum class LibrarySortMode(@get:StringRes val labelRes: Int) {
+    NAME_ASC(R.string.sort_name_asc),
+    NAME_DESC(R.string.sort_name_desc),
+    ARTIST_ASC(R.string.sort_artist_asc),
+    ARTIST_DESC(R.string.sort_artist_desc),
+    CREATED_DESC(R.string.sort_created_desc),
+    CREATED_ASC(R.string.sort_created_asc),
 }
 
 @Composable
@@ -435,9 +455,9 @@ private fun LibraryScreen(
                 AssetImage("logo2.png", "SONAR logo", Modifier.size(28.dp), ColorFilter.tint(Color.White))
                 Text("SONAR", color = Color.White, fontFamily = SonarLogoFont, fontSize = 35.2.sp, fontWeight = FontWeight.Black, letterSpacing = 5.sp, modifier = Modifier.weight(1f).padding(start = 14.dp))
                 IconButton(onClick = { searchOpen = !searchOpen }, modifier = Modifier.size(40.dp)) {
-                    Icon(if (searchOpen) Icons.Rounded.Close else Icons.Rounded.Search, if (searchOpen) "Закрыть поиск" else "Поиск", tint = Color.White, modifier = Modifier.size(25.dp))
+                    Icon(if (searchOpen) Icons.Rounded.Close else Icons.Rounded.Search, stringResource(if (searchOpen) R.string.search_close else R.string.search_open), tint = Color.White, modifier = Modifier.size(25.dp))
                 }
-                IconButton(onClick = onSettings, modifier = Modifier.size(40.dp)) { Icon(Icons.Rounded.Settings, "Settings", tint = Color.White, modifier = Modifier.size(26.dp)) }
+                IconButton(onClick = onSettings, modifier = Modifier.size(40.dp)) { Icon(Icons.Rounded.Settings, stringResource(R.string.settings_title), tint = Color.White, modifier = Modifier.size(26.dp)) }
             }
             AnimatedVisibility(
                 visible = searchOpen,
@@ -449,22 +469,33 @@ private fun LibraryScreen(
                     onValueChange = { searchQuery = it },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
                     singleLine = true,
-                    placeholder = { Text("Имя файла, трек или артист") },
+                    placeholder = { Text(stringResource(R.string.search_hint)) },
                     leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                     trailingIcon = {
-                        if (searchQuery.isNotEmpty()) IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Rounded.Close, "Очистить") }
+                        if (searchQuery.isNotEmpty()) IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Rounded.Close, stringResource(R.string.btn_clear)) }
                     },
                     shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color.White.copy(alpha = .35f),
+                        unfocusedBorderColor = Color.White.copy(alpha = .12f),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedLeadingIconColor = Color.White,
+                        unfocusedLeadingIconColor = SonarMuted,
+                        focusedTrailingIconColor = Color.White,
+                        unfocusedTrailingIconColor = SonarMuted,
+                        cursorColor = Color.White,
+                    ),
                 )
             }
             Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp).padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("ТРЕКИ НА УСТРОЙСТВЕ (${displayTracks.size})", color = Color.White, fontSize = 9.6.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = .8.sp, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.library_tracks_count_header, displayTracks.size), color = Color.White, fontFamily = RubikFont, fontSize = 9.6.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = .8.sp, modifier = Modifier.weight(1f))
                 Row(
                     Modifier.offset(x = (-4).dp).clickable { sortMenuOpen = !sortMenuOpen }.padding(horizontal = 6.dp, vertical = 3.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("СОРТИРОВАТЬ", color = Color.White, fontSize = 9.6.sp, fontWeight = FontWeight.Bold, letterSpacing = .8.sp)
-                    Icon(Icons.Rounded.Sort, contentDescription = "Toggle grouping", tint = Color.White, modifier = Modifier.size(16.dp))
+                    Text(stringResource(R.string.btn_sort), color = Color.White, fontFamily = RubikFont, fontSize = 9.6.sp, fontWeight = FontWeight.Bold, letterSpacing = .8.sp)
+                    Icon(Icons.Rounded.Sort, contentDescription = stringResource(R.string.btn_sort), tint = Color.White, modifier = Modifier.size(16.dp))
                 }
                 Surface(color = Color.White.copy(alpha = .08f), shape = RoundedCornerShape(10.dp)) {
                     ViewModeToggle(
@@ -479,8 +510,8 @@ private fun LibraryScreen(
                 Surface(color = SonarSurface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp)) {
                     Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Сетка плиток", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            Text("${columns} в ряд", color = SonarControlSurface, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.grid_settings_title), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.grid_columns_in_row, columns), color = SonarControlSurface, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                         Slider(value = columns.toFloat(), onValueChange = { value ->
                             val next = value.toInt().coerceIn(2, 12)
@@ -504,8 +535,8 @@ private fun LibraryScreen(
             } else if (displayTracks.isEmpty()) {
                 Column(Modifier.fillMaxWidth().padding(top = 70.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Rounded.Search, contentDescription = null, tint = SonarMuted, modifier = Modifier.size(44.dp))
-                    Text("Ничего не найдено", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
-                    Text("Попробуйте изменить запрос", color = SonarMuted, fontSize = 13.sp)
+                    Text(stringResource(R.string.search_empty_title), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
+                    Text(stringResource(R.string.search_empty_subtitle), color = SonarMuted, fontSize = 13.sp)
                 }
             } else {
                 if (grid) {
@@ -582,7 +613,7 @@ private fun SortMenu(
             .shadow(14.dp, RoundedCornerShape(18.dp), ambientColor = Color.Black.copy(alpha = .4f), spotColor = Color.Black.copy(alpha = .5f)),
     ) {
         Column(Modifier.padding(8.dp)) {
-            Text("СОРТИРОВАТЬ", color = SonarMuted, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+            Text(stringResource(R.string.sort_title), color = SonarMuted, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
             LibrarySortMode.entries.forEach { mode ->
                 val active = mode == selected
                 Surface(
@@ -591,7 +622,7 @@ private fun SortMenu(
                     modifier = Modifier.fillMaxWidth().clickable { onSelect(mode) },
                 ) {
                     Row(Modifier.padding(horizontal = 12.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(mode.label, color = if (active) Color.White else SonarMuted, fontSize = 13.sp, fontWeight = if (active) FontWeight.Bold else FontWeight.Medium, modifier = Modifier.weight(1f))
+                        Text(stringResource(mode.labelRes), color = if (active) Color.White else SonarMuted, fontSize = 13.sp, fontWeight = if (active) FontWeight.Bold else FontWeight.Medium, modifier = Modifier.weight(1f))
                         if (active) Text("✓", color = SonarControlSurface, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
@@ -765,9 +796,10 @@ private fun ArtistHeader(
     artistTranslationX: Float = 0f,
 ) {
     val animatedAccent by animateColorAsState(accent, animationSpec = tween(600), label = "playerAccent")
+    val defaultNoArtist = stringResource(R.string.player_no_artist)
     Column(modifier, horizontalAlignment = if (alignEnd) Alignment.End else Alignment.Start) {
         Text(
-            if (state.currentIndex >= 0) "TRACK ${"%02d".format(state.currentIndex + 1)} / ${"%02d".format(state.queue.size)}" else "TRACK 00 / 00",
+            if (state.currentIndex >= 0) stringResource(R.string.player_track_index, state.currentIndex + 1, state.queue.size) else stringResource(R.string.player_track_index_empty),
             color = animatedAccent,
             fontSize = 9.9.sp,
             fontFamily = PlayerBodyFont,
@@ -776,7 +808,7 @@ private fun ArtistHeader(
         )
         Spacer(Modifier.height(1.dp))
         AnimatedContent(
-            targetState = track?.artist?.uppercase() ?: "NO TRACK",
+            targetState = track?.artist?.uppercase() ?: defaultNoArtist,
             transitionSpec = {
                 (fadeIn(tween(180)) + scaleIn(initialScale = .96f, animationSpec = tween(180))) togetherWith
                     (fadeOut(tween(140)) + scaleOut(targetScale = .96f, animationSpec = tween(140)))
@@ -791,9 +823,9 @@ private fun ArtistHeader(
                 artistName,
                 color = SonarText,
                 fontSize = if (artistName.length > 20) 18.4.sp else 22.4.sp,
-                fontFamily = PlayerDisplayFont,
+                fontFamily = displayFontFor(artistName),
                 fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 1.sp,
+                letterSpacing = displayArtistSpacing(artistName),
                 maxLines = 2,
                 textAlign = if (alignEnd) TextAlign.End else TextAlign.Start,
                 overflow = TextOverflow.Ellipsis,
@@ -846,11 +878,12 @@ private fun PlayerDetails(
     } else {
         1f
     }
+    val defaultNoTrack = stringResource(R.string.player_no_track)
     Column(modifier.padding(top = 2.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
         val titleSize = 20.8.sp
         val displayTitle = track?.title?.let { title ->
             if (title.length > 7 && title.contains(' ')) title.replaceFirst(" ", "\n") else title
-        } ?: "Select a track"
+        } ?: defaultNoTrack
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 AnimatedContent(
@@ -858,14 +891,14 @@ private fun PlayerDetails(
                     transitionSpec = { (fadeIn(tween(180)) + scaleIn(initialScale = .96f, animationSpec = tween(180))) togetherWith (fadeOut(tween(140)) + scaleOut(targetScale = .96f, animationSpec = tween(140))) },
                     label = "trackTitleTransition",
                 ) { title ->
-                    Text(title, fontSize = titleSize, fontFamily = PlayerDisplayFont, fontWeight = FontWeight.ExtraBold, lineHeight = 22.9.sp, letterSpacing = (-0.5).sp, maxLines = 4, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 220.dp))
+                    Text(title, fontSize = titleSize, fontFamily = displayFontFor(title), fontWeight = FontWeight.ExtraBold, lineHeight = 22.9.sp, letterSpacing = displayTrackTitleSpacing(title), maxLines = 4, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 220.dp))
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable(onClick = onTimer).padding(horizontal = 8.dp, vertical = 3.dp)) {
                 Text(formatPlayerTime(scrub.toLong()), color = SonarText, style = TextStyle(fontFamily = PlayerBodyFont, fontSize = 15.2.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = .5.sp, fontFeatureSettings = "tnum"))
                 Text("/", color = SonarText.copy(alpha = .5f), style = TextStyle(fontFamily = PlayerBodyFont, fontSize = 12.9.sp, fontFeatureSettings = "tnum"))
                 Text(formatPlayerTime(duration), color = SonarText, style = TextStyle(fontFamily = PlayerBodyFont, fontSize = 15.2.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = .5.sp, fontFeatureSettings = "tnum"))
-                if (state.sleepTimer.isActive) Icon(Icons.Rounded.Bedtime, "Sleep timer active", tint = SonarText, modifier = Modifier.size(15.dp).graphicsLayer { alpha = moonAlpha; scaleX = moonScale; scaleY = moonScale })
+                if (state.sleepTimer.isActive) Icon(Icons.Rounded.Bedtime, stringResource(R.string.cd_sleep_timer_active), tint = SonarText, modifier = Modifier.size(15.dp).graphicsLayer { alpha = moonAlpha; scaleX = moonScale; scaleY = moonScale })
             }
         }
         if (!wide) {
@@ -999,18 +1032,20 @@ private fun ExpressiveControlGrid(
     val playOffset by animateDpAsState(if (state.isPlaying) 0.dp else (-5).dp, animationSpec = tween(300, easing = SpringBounce), label = "playOffset")
     val playBlackShadow = if (state.isPlaying) 12.dp else 20.dp
     val playColorShadow = if (state.isPlaying) 0.dp else 10.dp
+    val favPlaylistName = stringResource(R.string.default_favorites_playlist)
+    val favDesc = if (state.isFavorite) stringResource(R.string.cd_remove_favorite, favPlaylistName) else stringResource(R.string.cd_add_favorite, favPlaylistName)
     Row(Modifier.fillMaxWidth().height(if (wide) 190.dp else 154.dp), horizontalArrangement = Arrangement.spacedBy(if (wide) 14.dp else 10.dp)) {
         Column(Modifier.width(sideWidth), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ExpressiveButton(secondary, if (state.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, if (state.isFavorite) "Remove from $DEFAULT_PLAYLIST_NAME" else "Add to $DEFAULT_PLAYLIST_NAME", Modifier.weight(1f), Color.White, onFavorite, iconSize = if (wide) 46.dp else 38.dp)
+            ExpressiveButton(secondary, if (state.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, favDesc, Modifier.weight(1f), Color.White, onFavorite, iconSize = if (wide) 46.dp else 38.dp)
             Row(Modifier.height(44.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 DualModeControl(state.subControlMode, state.shuffle, state.repeatMode, accent, onSubTap, onSubLongPress, Modifier.weight(1f))
-                ExpressiveButton(Color.White.copy(alpha = .86f), Icons.Rounded.LibraryMusic, "Queue", Modifier.weight(1f), Color(0xFF111318), onQueue, corner = 14.dp, iconSize = 22.dp)
+                ExpressiveButton(Color.White.copy(alpha = .86f), Icons.Rounded.LibraryMusic, stringResource(R.string.cd_queue), Modifier.weight(1f), Color(0xFF111318), onQueue, corner = 14.dp, iconSize = 22.dp)
             }
         }
-        ExpressiveButton(Color.White, if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, "Play or pause", Modifier.weight(1f).fillMaxSize().offset(y = playOffset), Color(0xFF111318), onToggle, corner = 38.dp, iconSize = if (wide) 72.dp else 56.dp, blackShadow = playBlackShadow, colorShadow = playColorShadow, borderColor = Color.White.copy(alpha = if (state.isPlaying) .8f else .9f))
+        ExpressiveButton(Color.White, if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, stringResource(R.string.cd_play_or_pause), Modifier.weight(1f).fillMaxSize().offset(y = playOffset), Color(0xFF111318), onToggle, corner = 38.dp, iconSize = if (wide) 72.dp else 56.dp, blackShadow = playBlackShadow, colorShadow = playColorShadow, borderColor = Color.White.copy(alpha = if (state.isPlaying) .8f else .9f))
         Column(Modifier.width(sideWidth), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ExpressiveButton(accent, Icons.Rounded.SkipNext, "Next", Modifier.weight(1f), Color(0xFF111318), onNext, iconSize = 34.dp, pressedColor = accent)
-            ExpressiveButton(accent, Icons.Rounded.SkipPrevious, "Previous", Modifier.weight(1f), Color(0xFF111318), onPrevious, iconSize = 34.dp, pressedColor = accent)
+            ExpressiveButton(accent, Icons.Rounded.SkipNext, stringResource(R.string.cd_next), Modifier.weight(1f), Color(0xFF111318), onNext, iconSize = 34.dp, pressedColor = accent)
+            ExpressiveButton(accent, Icons.Rounded.SkipPrevious, stringResource(R.string.cd_previous), Modifier.weight(1f), Color(0xFF111318), onPrevious, iconSize = 34.dp, pressedColor = accent)
         }
     }
 }
@@ -1019,23 +1054,55 @@ private fun ExpressiveControlGrid(
 private fun SettingsScreen(
     highResolution: Boolean,
     resumeAfterFocusLoss: Boolean,
+    hapticFeedback: Boolean,
     volume: Float,
     outputDescription: String,
     sessionId: Int,
+    currentLanguage: AppLanguage,
     importing: Boolean,
     onImport: () -> Unit,
     onBack: () -> Unit,
     onAbout: () -> Unit,
     onHighResolution: (Boolean) -> Unit,
     onResumeAfterFocusLoss: (Boolean) -> Unit,
+    onHapticFeedback: (Boolean) -> Unit,
+    onLanguage: (AppLanguage) -> Unit,
     onVolume: (Float) -> Unit,
 ) {
+    val scrollState = rememberScrollState()
     Scaffold(containerColor = Color.Transparent) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp)) {
-            Header("SETTINGS", "AUDIO SESSION", { IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back") } }) {}
-            SettingSwitch("High-resolution output", "Core negotiates the actual device encoding", highResolution, onHighResolution)
-            SettingSwitch("Resume after audio focus loss", "Resume only when playback was active before focus changed", resumeAfterFocusLoss, onResumeAfterFocusLoss)
-            SectionLabel("VOLUME", Modifier.padding(top = 22.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(scrollState)
+                .padding(horizontal = 20.dp),
+        ) {
+            Header(
+                stringResource(R.string.settings_title),
+                stringResource(R.string.settings_subtitle_audio_session),
+                { IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, stringResource(R.string.btn_back)) } },
+            ) {}
+            SettingSwitch(
+                stringResource(R.string.setting_high_res_title),
+                stringResource(R.string.setting_high_res_desc),
+                highResolution,
+                onHighResolution,
+            )
+            SettingSwitch(
+                stringResource(R.string.setting_audio_focus_title),
+                stringResource(R.string.setting_audio_focus_desc),
+                resumeAfterFocusLoss,
+                onResumeAfterFocusLoss,
+            )
+            SettingSwitch(
+                stringResource(R.string.setting_haptic_feedback_title),
+                stringResource(R.string.setting_haptic_feedback_desc),
+                hapticFeedback,
+                onHapticFeedback,
+            )
+            SettingLanguageRow(current = currentLanguage, onSelect = onLanguage)
+            SectionLabel(stringResource(R.string.section_volume), Modifier.padding(top = 16.dp))
             Slider(
                 value = volume,
                 onValueChange = onVolume,
@@ -1045,20 +1112,20 @@ private fun SettingsScreen(
                     inactiveTrackColor = Color.White.copy(alpha = .2f),
                 ),
             )
-            HorizontalDivider(color = SonarOutline, modifier = Modifier.padding(vertical = 18.dp))
-            SectionLabel("CURRENT OUTPUT", Modifier.padding(bottom = 8.dp))
+            HorizontalDivider(color = SonarOutline, modifier = Modifier.padding(vertical = 14.dp))
+            SectionLabel(stringResource(R.string.section_current_output), Modifier.padding(bottom = 8.dp))
             Text(outputDescription, fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
-            Text("Negotiated by AudioTrack. Hardware delivery may still be mixed or resampled by Android.", color = SonarMuted, fontSize = 12.sp)
-            Text("Stable audio session: $sessionId", color = SonarMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+            Text(stringResource(R.string.output_negotiated_desc), color = SonarMuted, fontSize = 12.sp)
+            Text(stringResource(R.string.output_session_id, sessionId), color = SonarMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
             Button(
                 onClick = onImport,
                 enabled = !importing,
                 colors = ButtonDefaults.buttonColors(containerColor = SonarControlSurface, contentColor = SonarControlContent),
-                modifier = Modifier.fillMaxWidth().padding(top = 22.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
             ) {
-                Text(if (importing) "СКАНИРОВАНИЕ..." else "ВЫБРАТЬ ПАПКУ С АУДИО")
+                Text(if (importing) stringResource(R.string.state_scanning_caps) else stringResource(R.string.btn_select_audio_folder))
             }
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(28.dp))
             Surface(
                 color = Color.White.copy(alpha = .06f),
                 shape = RoundedCornerShape(16.dp),
@@ -1071,13 +1138,116 @@ private fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("О ПРОГРАММЕ", fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
-                        Text("Sonar music player", color = SonarMuted, fontSize = 12.sp)
+                        Text(stringResource(R.string.btn_about_app), fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                        Text(stringResource(R.string.about_app_subtitle), color = SonarMuted, fontSize = 12.sp)
                     }
-                    Icon(Icons.Rounded.KeyboardArrowRight, contentDescription = "О программе", tint = SonarMuted)
+                    Icon(Icons.Rounded.KeyboardArrowRight, contentDescription = stringResource(R.string.btn_about_app), tint = SonarMuted)
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(28.dp))
+        }
+    }
+}
+
+@Composable
+private fun SettingLanguageRow(
+    current: AppLanguage,
+    onSelect: (AppLanguage) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val currentLabelRes = when (current) {
+        AppLanguage.SYSTEM -> R.string.lang_system
+        AppLanguage.RU -> R.string.lang_ru
+        AppLanguage.EN -> R.string.lang_en
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { expanded = true }
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.setting_app_language_title), fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.setting_app_language_desc), color = SonarMuted, fontSize = 12.sp)
+        }
+        Box {
+            Surface(
+                color = Color.White.copy(alpha = .08f),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = .12f)),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = stringResource(currentLabelRes),
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Icon(
+                        imageVector = Icons.Rounded.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = SonarMuted,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier
+                    .background(SonarSurface, RoundedCornerShape(16.dp))
+                    .border(BorderStroke(1.dp, Color.White.copy(alpha = .14f)), RoundedCornerShape(16.dp))
+                    .padding(4.dp),
+            ) {
+                val languages = listOf(
+                    AppLanguage.SYSTEM to R.string.lang_system,
+                    AppLanguage.RU to R.string.lang_ru,
+                    AppLanguage.EN to R.string.lang_en,
+                )
+                languages.forEach { (lang, labelRes) ->
+                    val selected = current == lang
+                    DropdownMenuItem(
+                        text = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(
+                                    text = stringResource(labelRes),
+                                    color = if (selected) SonarControlSurface else Color.White,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                    fontSize = 14.sp,
+                                )
+                                if (selected) {
+                                    Spacer(Modifier.width(16.dp))
+                                    Text(
+                                        text = "✓",
+                                        color = SonarControlSurface,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                    )
+                                }
+                            }
+                        },
+                        onClick = {
+                            onSelect(lang)
+                            expanded = false
+                        },
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (selected) Color.White.copy(alpha = .08f) else Color.Transparent),
+                    )
+                }
+            }
         }
     }
 }
@@ -1096,9 +1266,9 @@ private fun AboutScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Header(
-                title = "О ПРОГРАММЕ",
-                subtitle = "SONAR MUSIC PLAYER",
-                leading = { IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Назад") } },
+                title = stringResource(R.string.about_title),
+                subtitle = stringResource(R.string.about_subtitle),
+                leading = { IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, stringResource(R.string.btn_back)) } },
                 actions = {},
             )
             Spacer(Modifier.height(30.dp))
@@ -1119,8 +1289,8 @@ private fun AboutScreen(
                 )
             }
             Spacer(Modifier.height(20.dp))
-            Text("v1.0", fontFamily = RubikFont, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
-            Text("Sonar music player", color = SonarMuted, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
+            Text(stringResource(R.string.about_version), fontFamily = RubikFont, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+            Text(stringResource(R.string.about_app_subtitle), color = SonarMuted, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
             Spacer(Modifier.height(32.dp))
             Surface(
                 color = Color.White.copy(alpha = .06f),
@@ -1128,11 +1298,16 @@ private fun AboutScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/norealist/sonar")))
+                        runCatching {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/norealist/sonar")).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(intent)
+                        }
                     },
             ) {
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-                    Text("Исходный код", fontFamily = RubikFont, fontWeight = FontWeight.ExtraBold)
+                    Text(stringResource(R.string.about_source_code), fontFamily = RubikFont, fontWeight = FontWeight.ExtraBold)
                     Text(
                         "https://github.com/norealist/sonar",
                         color = SonarMuted,
@@ -1175,7 +1350,7 @@ private fun SheetHeader(title: String, subtitle: String? = null, onClose: () -> 
             subtitle?.let { Text(it, color = SonarMuted, fontSize = 10.4.sp, fontWeight = FontWeight.ExtraBold) }
         }
         Surface(color = Color.White.copy(alpha = .1f), shape = androidx.compose.foundation.shape.CircleShape) {
-            IconButton(onClick = onClose, modifier = Modifier.size(32.dp)) { Icon(Icons.Rounded.Close, "Закрыть", modifier = Modifier.size(18.dp)) }
+            IconButton(onClick = onClose, modifier = Modifier.size(32.dp)) { Icon(Icons.Rounded.Close, stringResource(R.string.btn_close), modifier = Modifier.size(18.dp)) }
         }
     }
 }
@@ -1189,7 +1364,8 @@ private fun QueueSheet(state: PlayerUiState, onSelect: (Track, Boolean) -> Unit,
     }
 
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-        SheetHeader("СПИСОК ВОСПРОИЗВЕДЕНИЯ", "${state.queue.size} ТРЕКОВ", onClose)
+        val countText = pluralStringResource(R.plurals.queue_track_count, state.queue.size, state.queue.size)
+        SheetHeader(stringResource(R.string.queue_title), countText, onClose)
         Spacer(Modifier.height(12.dp))
         LazyColumn(state = listState) { items(state.queue, key = { it.id }) { track ->
             Surface(
@@ -1224,37 +1400,38 @@ private fun SleepSheet(
         }
     }
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-        SheetHeader("ТАЙМЕР СНА", onClose = onClose)
+        SheetHeader(stringResource(R.string.sleep_timer_title), onClose = onClose)
         if (timer.isActive) {
             Surface(color = Color(0xFFB3261E).copy(alpha = .2f), shape = RoundedCornerShape(18.dp), border = BorderStroke(1.dp, Color(0xFFF87171).copy(alpha = .35f)), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Воспроизведение остановится через", color = SonarMuted, fontSize = 12.sp)
+                        Text(stringResource(R.string.sleep_timer_stopping_in), color = SonarMuted, fontSize = 12.sp)
                         Text(formatMs(timer.remainingMs(now)), color = Color(0xFFFFB4AB), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
                     }
-                    Button(onClick = onCancel) { Text("Отключить") }
+                    Button(onClick = onCancel) { Text(stringResource(R.string.btn_turn_off)) }
                 }
             }
         } else {
-            Text("Воспроизведение остановится через", color = SonarMuted)
+            Text(stringResource(R.string.sleep_timer_stopping_in), color = SonarMuted)
             Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 8.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     listOf(5, 10, 15).forEach { minutes ->
-                        SleepOptionButton("$minutes мин", Modifier.weight(1f)) { onSet(minutes) }
+                        SleepOptionButton(stringResource(R.string.sleep_option_minutes, minutes), Modifier.weight(1f)) { onSet(minutes) }
                     }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     listOf(30, 45, 60).forEach { minutes ->
-                        SleepOptionButton(if (minutes == 60) "1 час" else "$minutes мин", Modifier.weight(1f)) { onSet(minutes) }
+                        val label = if (minutes == 60) stringResource(R.string.sleep_option_one_hour) else stringResource(R.string.sleep_option_minutes, minutes)
+                        SleepOptionButton(label, Modifier.weight(1f)) { onSet(minutes) }
                     }
                 }
                 if (!showCustom) {
-                    SleepOptionButton("Произвольный", Modifier.fillMaxWidth()) { showCustom = true }
+                    SleepOptionButton(stringResource(R.string.sleep_option_custom), Modifier.fillMaxWidth()) { showCustom = true }
                 } else {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(custom, { custom = it.filter(Char::isDigit) }, label = { Text("Минуты") }, modifier = Modifier.weight(1f), singleLine = true)
+                        OutlinedTextField(custom, { custom = it.filter(Char::isDigit) }, label = { Text(stringResource(R.string.sleep_custom_minutes_label)) }, modifier = Modifier.weight(1f), singleLine = true)
                         Spacer(Modifier.width(8.dp))
-                        Button(onClick = { custom.toIntOrNull()?.let { onSet(it.coerceIn(1, 600)); custom = "" } }) { Text("ОК") }
+                        Button(onClick = { custom.toIntOrNull()?.let { onSet(it.coerceIn(1, 600)); custom = "" } }) { Text(stringResource(R.string.btn_ok)) }
                     }
                 }
             }

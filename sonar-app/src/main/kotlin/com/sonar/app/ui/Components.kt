@@ -75,6 +75,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import com.sonar.app.data.Track
 import com.sonar.app.data.RepeatMode
 import com.sonar.app.data.SubControlMode
+import com.sonar.app.R
+import androidx.compose.ui.res.stringResource
 import java.util.Locale
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -191,6 +193,8 @@ fun TrackRow(
 ) {
     val rowColor by animateColorAsState(if (selected) SonarGreen.copy(alpha = .16f) else SonarOutline, animationSpec = tween(220), label = "trackRowColor")
     val rowBorder by animateColorAsState(if (selected) SonarGreen.copy(alpha = .55f) else Color.White.copy(alpha = .12f), animationSpec = tween(220), label = "trackRowBorder")
+    val rowContentDesc = stringResource(R.string.track_row_play_desc, track.title, track.artist)
+    val playContentDesc = stringResource(R.string.cd_play)
     Surface(
         color = rowColor,
         shape = RoundedCornerShape(18.dp),
@@ -200,7 +204,7 @@ fun TrackRow(
             .animateContentSize(animationSpec = tween(220))
             .shadow(8.dp, RoundedCornerShape(18.dp), ambientColor = Color.Black.copy(alpha = .25f), spotColor = Color.Black.copy(alpha = .35f))
             .clickable(onClick = onClick)
-            .semantics { contentDescription = "Play ${track.title} by ${track.artist}" },
+            .semantics { contentDescription = rowContentDesc },
     ) {
         Row(
             modifier = Modifier.padding(start = 10.dp, top = 10.dp, end = 10.dp, bottom = 10.dp),
@@ -221,7 +225,7 @@ fun TrackRow(
             }
             Surface(color = Color.White.copy(alpha = .1f), shape = androidx.compose.foundation.shape.CircleShape, modifier = Modifier.size(36.dp).clickable(onClick = onClick)) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.PlayArrow, contentDescription = "Play", tint = Color.White, modifier = Modifier.size(22.dp))
+                    Icon(Icons.Rounded.PlayArrow, contentDescription = playContentDesc, tint = Color.White, modifier = Modifier.size(22.dp))
                 }
             }
         }
@@ -236,8 +240,8 @@ fun EmptyLibrary(onImport: () -> Unit, importing: Boolean) {
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Artwork(null, Modifier.size(118.dp), 36.dp)
-        Text("Your library is quiet", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Text("Выберите папку Music или любую папку с аудио. Вложенные директории тоже будут просканированы.", color = SonarMuted, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Text(stringResource(R.string.library_empty_title), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.library_empty_subtitle), color = SonarMuted, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         androidx.compose.material3.Button(
             onClick = onImport,
             enabled = !importing,
@@ -245,7 +249,7 @@ fun EmptyLibrary(onImport: () -> Unit, importing: Boolean) {
         ) {
             Icon(Icons.Rounded.Add, contentDescription = null)
             Spacer(Modifier.width(8.dp))
-            Text(if (importing) "Сканирование..." else "Выбрать папку")
+            Text(if (importing) stringResource(R.string.state_scanning) else stringResource(R.string.btn_select_folder))
         }
     }
 }
@@ -288,10 +292,10 @@ fun ViewModeToggle(
             .padding(2.dp),
     ) {
         Box(Modifier.size(34.dp).expressivePress(onGrid, onLongPress).background(gridBackground, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
-            Icon(Icons.Rounded.GridView, contentDescription = "Grid view", tint = content)
+            Icon(Icons.Rounded.GridView, contentDescription = stringResource(R.string.view_grid), tint = content)
         }
         Box(Modifier.size(34.dp).expressivePress(onList, onLongPress).background(listBackground, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
-            Icon(Icons.Rounded.List, contentDescription = "List view", tint = content)
+            Icon(Icons.Rounded.List, contentDescription = stringResource(R.string.view_list), tint = content)
         }
     }
 }
@@ -365,6 +369,13 @@ fun DualModeControl(
         Icons.Rounded.Repeat
     }
     val active = if (mode == SubControlMode.SHUFFLE) shuffle else repeat != RepeatMode.OFF
+    val subControlDesc = if (mode == SubControlMode.SHUFFLE) {
+        stringResource(R.string.cd_shuffle)
+    } else if (repeat == RepeatMode.ONE) {
+        stringResource(R.string.cd_repeat_one)
+    } else {
+        stringResource(R.string.cd_repeat)
+    }
     Surface(
         color = if (active) {
             accent
@@ -380,7 +391,7 @@ fun DualModeControl(
             .expressivePress(onTap, onLongPress),
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = if (mode == SubControlMode.SHUFFLE) "Shuffle" else "Repeat", tint = Color(0xFF111318), modifier = Modifier.size(22.dp))
+            Icon(icon, contentDescription = subControlDesc, tint = Color(0xFF111318), modifier = Modifier.size(22.dp))
         }
     }
 }

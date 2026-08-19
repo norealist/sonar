@@ -86,15 +86,20 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 takePersistablePermission(treeUri)
                 val candidates = withContext(Dispatchers.IO) { scanAudioFiles(treeUri) }
                 if (candidates.isEmpty()) {
-                    error("В выбранной папке не найдено аудио")
+                    error(getApplication<Application>().getString(R.string.err_no_audio_found))
                 }
                 importCandidates(candidates)
             } catch (failure: Throwable) {
-                mutableError.value = failure.message ?: "Unable to import audio"
+                mutableError.value = failure.message ?: getApplication<Application>().getString(R.string.err_import_failed)
             } finally {
                 mutableImporting.value = false
             }
         }
+    }
+
+    fun setLanguage(language: com.sonar.app.data.AppLanguage) {
+        settings.update { it.copy(language = language) }
+        LocaleHelper.applyLanguage(language)
     }
 
     private suspend fun importCandidates(candidates: List<AudioCandidate>) {
@@ -165,6 +170,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     fun setResumeAfterFocusLoss(enabled: Boolean) {
         settings.update { it.copy(resumeAfterFocusLoss = enabled) }
+    }
+
+    fun setHapticFeedback(enabled: Boolean) {
+        settings.update { it.copy(hapticFeedback = enabled) }
     }
 
     private fun takePersistablePermission(uri: Uri) {

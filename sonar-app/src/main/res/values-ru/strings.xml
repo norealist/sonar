@@ -1,0 +1,114 @@
+<resources>
+    <string name="app_name">Sonar</string>
+    <string name="default_favorites_playlist">Избранное</string>
+    <string name="untitled_track">Без названия</string>
+    <string name="unknown_artist">Неизвестный исполнитель</string>
+    <string name="unknown_album">Неизвестный альбом</string>
+    <string name="local_audio">Локальное аудио</string>
+
+    <!-- Navigation & Common -->
+    <string name="btn_back">Назад</string>
+    <string name="btn_close">Закрыть</string>
+    <string name="btn_ok">ОК</string>
+    <string name="btn_clear">Очистить</string>
+
+    <!-- Library Screen -->
+    <string name="library_title_tracks">Треки на устройстве</string>
+    <string name="library_tracks_count_header">ТРЕКИ НА УСТРОЙСТВЕ (%1$d)</string>
+    <string name="search_hint">Имя файла, трек или артист</string>
+    <string name="search_open">Поиск</string>
+    <string name="search_close">Закрыть поиск</string>
+    <string name="search_empty_title">Ничего не найдено</string>
+    <string name="search_empty_subtitle">Попробуйте изменить запрос</string>
+    <string name="btn_sort">СОРТИРОВАТЬ</string>
+    <string name="sort_title">СОРТИРОВАТЬ</string>
+    <string name="sort_artist_asc">АРТИСТ A-Z</string>
+    <string name="sort_artist_desc">АРТИСТ Z-A</string>
+    <string name="sort_name_asc">A-Z</string>
+    <string name="sort_name_desc">Z-A</string>
+    <string name="sort_created_desc">НОВОЕ → СТАРОЕ</string>
+    <string name="sort_created_asc">СТАРОЕ → НОВОЕ</string>
+    <string name="grid_settings_title">Сетка плиток</string>
+    <string name="grid_columns_in_row">%1$d в ряд</string>
+    <string name="library_empty_title">Ваша медиатека пуста</string>
+    <string name="library_empty_subtitle">Выберите папку Music или любую папку с аудио. Вложенные директории тоже будут просканированы.</string>
+    <string name="btn_select_folder">Выбрать папку</string>
+    <string name="btn_select_audio_folder">ВЫБРАТЬ ПАПКУ С АУДИО</string>
+    <string name="state_scanning">Сканирование...</string>
+    <string name="state_scanning_caps">СКАНИРОВАНИЕ...</string>
+    <string name="view_grid">Сетка</string>
+    <string name="view_list">Список</string>
+    <string name="track_row_play_desc">Воспроизвести %1$s — %2$s</string>
+
+    <!-- Player Screen & MiniPlayer -->
+    <string name="player_no_track">Выберите трек</string>
+    <string name="player_no_artist">НЕТ ТРЕКА</string>
+    <string name="player_track_index">ТРЕК %1$02d / %2$02d</string>
+    <string name="player_track_index_empty">ТРЕК 00 / 00</string>
+    <string name="cd_play_or_pause">Воспроизведение или пауза</string>
+    <string name="cd_play">Воспроизведение</string>
+    <string name="cd_pause">Пауза</string>
+    <string name="cd_next">Следующий трек</string>
+    <string name="cd_previous">Предыдущий трек</string>
+    <string name="cd_shuffle">Перемешивание</string>
+    <string name="cd_repeat">Повтор</string>
+    <string name="cd_repeat_one">Повтор одного трека</string>
+    <string name="cd_queue">Очередь</string>
+    <string name="cd_sleep_timer_active">Таймер сна активен</string>
+    <string name="cd_add_favorite">Добавить в %1$s</string>
+    <string name="cd_remove_favorite">Удалить из %1$s</string>
+
+    <!-- Artist Screen -->
+    <string name="artist_tracks_on_device">ТРЕКИ НА УСТРОЙСТВЕ</string>
+    <string name="artist_import_track">ИМПОРТИРУЙТЕ ТРЕК</string>
+    <string name="artist_cd_artwork">Обложка для %1$s</string>
+
+    <!-- Queue Sheet -->
+    <string name="queue_title">СПИСОК ВОСПРОИЗВЕДЕНИЯ</string>
+    <plurals name="queue_track_count">
+        <item quantity="one">%1$d ТРЕК</item>
+        <item quantity="few">%1$d ТРЕКА</item>
+        <item quantity="many">%1$d ТРЕКОВ</item>
+        <item quantity="other">%1$d ТРЕКОВ</item>
+    </plurals>
+
+    <!-- Sleep Timer Sheet -->
+    <string name="sleep_timer_title">ТАЙМЕР СНА</string>
+    <string name="sleep_timer_stopping_in">Воспроизведение остановится через</string>
+    <string name="btn_turn_off">Отключить</string>
+    <string name="sleep_option_minutes">%1$d мин</string>
+    <string name="sleep_option_one_hour">1 час</string>
+    <string name="sleep_option_custom">Произвольный</string>
+    <string name="sleep_custom_minutes_label">Минуты</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">НАСТРОЙКИ</string>
+    <string name="settings_subtitle_audio_session">АУДИОСЕССИЯ</string>
+    <string name="setting_high_res_title">Вывод высокого разрешения</string>
+    <string name="setting_high_res_desc">Ядро согласовывает кодирование с устройством</string>
+    <string name="setting_audio_focus_title">Возобновлять после потери фокуса</string>
+    <string name="setting_audio_focus_desc">Возобновлять, только если воспроизведение было активно до потери фокуса</string>
+    <string name="setting_haptic_feedback_title">Виброотклик</string>
+    <string name="setting_haptic_feedback_desc">Вибрация при смене режимов и удержании кнопок</string>
+    <string name="setting_app_language_title">Язык приложения</string>
+    <string name="setting_app_language_desc">Язык интерфейса</string>
+    <string name="lang_system">Как в системе</string>
+    <string name="lang_ru">Русский</string>
+    <string name="lang_en">English</string>
+    <string name="section_volume">ГРОМКОСТЬ</string>
+    <string name="section_current_output">ТЕКУЩИЙ ВЫВОД</string>
+    <string name="output_negotiated_desc">Согласовано через AudioTrack. Звук может микшироваться системой Android.</string>
+    <string name="output_session_id">Стабильная аудиосессия: %1$d</string>
+    <string name="btn_about_app">О ПРОГРАММЕ</string>
+    <string name="about_app_subtitle">Музыкальный плеер Sonar</string>
+
+    <!-- About Screen -->
+    <string name="about_title">О ПРОГРАММЕ</string>
+    <string name="about_subtitle">SONAR MUSIC PLAYER</string>
+    <string name="about_version">v1.1</string>
+    <string name="about_source_code">Исходный код</string>
+
+    <!-- Errors -->
+    <string name="err_no_audio_found">В выбранной папке не найдено аудио</string>
+    <string name="err_import_failed">Не удалось импортировать аудио</string>
+</resources>
