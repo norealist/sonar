@@ -1,5 +1,14 @@
 # Sonar Music Player
 
+## Roadmap
+
+| Status | Priority | Feature | Description |
+| :---: | :---: | :--- | :--- |
+| ✅ | **Done** | Release v1.1 | |
+| ⏳ | **High** | `MediaSessionService` | Background playback, notification media controls, lock screen widget, and Bluetooth headset button support. |
+| ⏳ | **Medium** | **Interactive Like / Favorites** | Functional heart button with persistent local storage and dynamic "Favorites" playlist. |
+| ⏳ | **Normal** | **Synchronized Lyrics** | Real-time synced lyrics parsing (`.lrc` & embedded tags) styled with dynamic typography highlighting. |
+
 Sonar is a native Android music player focused on local audio playback and a custom audio pipeline.
 
 ---
