@@ -1,5 +1,19 @@
 # Sonar Music Player
 
+[![Release](https://img.shields.io/github/v/release/norealist/sonar)](https://github.com/norealist/sonar/releases)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
+Sonar is a native Android music player focused on local audio playback and a custom audio pipeline.
+
+---
+
+<p align="center">
+  <img src="repo-content/phone.png" width="200">
+  <img src="repo-content/tablet.png" width="600">
+</p>
+
+---
+
 > [!WARNING]
 > Sonar currently has a cache-size issue. The application's cache may grow to approximately the size of the selected music directory. For example, if you select emulated/0/Music containing 5 GB of music, Sonar's cache may also grow to around 5 GB. 
 > 
@@ -14,15 +28,6 @@
 | ⏳ | **High** | `MediaSessionService` | Background playback, notification media controls, lock screen widget, and Bluetooth headset button support. |
 | ⏳ | **Medium** | **Interactive Like / Favorites** | Functional heart button with persistent local storage and dynamic "Favorites" playlist. |
 | ⏳ | **Normal** | **Synchronized Lyrics** | Real-time synced lyrics parsing (`.lrc` & embedded tags) styled with dynamic typography highlighting. |
-
-Sonar is a native Android music player focused on local audio playback and a custom audio pipeline.
-
----
-
-<p align="center">
-  <img src="repo-content/phone.png" width="200">
-  <img src="repo-content/tablet.png" width="600">
-</p>
 
 ---
 
