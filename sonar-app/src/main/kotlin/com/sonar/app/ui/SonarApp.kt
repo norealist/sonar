@@ -3,6 +3,7 @@ package com.sonar.app.ui
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.sonar.app.HapticHelper
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
@@ -232,6 +233,7 @@ fun SonarApp(
                     SettingsScreen(
                         highResolution = settings.highResolutionOutput,
                         resumeAfterFocusLoss = settings.resumeAfterFocusLoss,
+                        hapticFeedback = settings.hapticFeedback,
                         volume = settings.volume,
                         outputDescription = player.outputDescription,
                         sessionId = player.audioSessionId,
@@ -242,6 +244,7 @@ fun SonarApp(
                         onAbout = { viewModel.navigate(AppScreen.ABOUT) },
                         onHighResolution = viewModel::toggleHighResolution,
                         onResumeAfterFocusLoss = viewModel::setResumeAfterFocusLoss,
+                        onHapticFeedback = viewModel::setHapticFeedback,
                         onLanguage = viewModel::setLanguage,
                         onVolume = viewModel.controller::setVolume,
                     )
@@ -271,7 +274,12 @@ fun SonarApp(
                     onSeek = viewModel.controller::seekTo,
                     onSeeking = viewModel.controller::setSeeking,
                     onSubTap = viewModel.controller::tapSubControl,
-                    onSubLongPress = viewModel.controller::toggleSubControlMode,
+                    onSubLongPress = {
+                        if (settings.hapticFeedback) {
+                            HapticHelper.performTick(context)
+                        }
+                        viewModel.controller.toggleSubControlMode()
+                    },
                     onTimer = { viewModel.setSheet(Sheet.SLEEP_TIMER) },
                     onQueue = { viewModel.setSheet(Sheet.QUEUE) },
                     onFavorite = viewModel::toggleFavorite,
@@ -1032,6 +1040,7 @@ private fun ExpressiveControlGrid(
 private fun SettingsScreen(
     highResolution: Boolean,
     resumeAfterFocusLoss: Boolean,
+    hapticFeedback: Boolean,
     volume: Float,
     outputDescription: String,
     sessionId: Int,
@@ -1042,6 +1051,7 @@ private fun SettingsScreen(
     onAbout: () -> Unit,
     onHighResolution: (Boolean) -> Unit,
     onResumeAfterFocusLoss: (Boolean) -> Unit,
+    onHapticFeedback: (Boolean) -> Unit,
     onLanguage: (AppLanguage) -> Unit,
     onVolume: (Float) -> Unit,
 ) {
@@ -1063,6 +1073,12 @@ private fun SettingsScreen(
                 stringResource(R.string.setting_audio_focus_desc),
                 resumeAfterFocusLoss,
                 onResumeAfterFocusLoss,
+            )
+            SettingSwitch(
+                stringResource(R.string.setting_haptic_feedback_title),
+                stringResource(R.string.setting_haptic_feedback_desc),
+                hapticFeedback,
+                onHapticFeedback,
             )
             SettingLanguageRow(current = currentLanguage, onSelect = onLanguage)
             SectionLabel(stringResource(R.string.section_volume), Modifier.padding(top = 16.dp))

@@ -72,6 +72,7 @@ data class AppSettings(
     val selectedTrackId: String? = null,
     val selectedIndex: Int = 0,
     val language: AppLanguage = AppLanguage.SYSTEM,
+    val hapticFeedback: Boolean = true,
 )
 
 data class SleepTimerState(

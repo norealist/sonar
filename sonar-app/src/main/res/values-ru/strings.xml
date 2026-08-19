@@ -1,4 +1,4 @@
-﻿<resources>
+<resources>
     <string name="app_name">Sonar</string>
     <string name="default_favorites_playlist">Избранное</string>
     <string name="untitled_track">Без названия</string>
@@ -88,6 +88,8 @@
     <string name="setting_high_res_desc">Ядро согласовывает кодирование с устройством</string>
     <string name="setting_audio_focus_title">Возобновлять после потери фокуса</string>
     <string name="setting_audio_focus_desc">Возобновлять, только если воспроизведение было активно до потери фокуса</string>
+    <string name="setting_haptic_feedback_title">Виброотклик</string>
+    <string name="setting_haptic_feedback_desc">Вибрация при смене режимов и удержании кнопок</string>
     <string name="setting_app_language_title">Язык приложения</string>
     <string name="setting_app_language_desc">Язык интерфейса</string>
     <string name="lang_system">Как в системе</string>

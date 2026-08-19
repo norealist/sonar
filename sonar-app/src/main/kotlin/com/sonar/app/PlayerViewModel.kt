@@ -172,6 +172,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         settings.update { it.copy(resumeAfterFocusLoss = enabled) }
     }
 
+    fun setHapticFeedback(enabled: Boolean) {
+        settings.update { it.copy(hapticFeedback = enabled) }
+    }
+
     private fun takePersistablePermission(uri: Uri) {
         val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
         runCatching { getApplication<Application>().contentResolver.takePersistableUriPermission(uri, flags) }

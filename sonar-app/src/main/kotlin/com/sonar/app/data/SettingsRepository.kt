@@ -34,6 +34,7 @@ class PersistentSettingsRepository(context: Context) : SettingsRepository {
             .putString("selectedTrackId", next.selectedTrackId)
             .putInt("selectedIndex", next.selectedIndex)
             .putString("language", next.language.name)
+            .putBoolean("hapticFeedback", next.hapticFeedback)
             .apply()
     }
 
@@ -56,5 +57,6 @@ class PersistentSettingsRepository(context: Context) : SettingsRepository {
         language = runCatching {
             AppLanguage.valueOf(preferences.getString("language", AppLanguage.SYSTEM.name)!!)
         }.getOrDefault(AppLanguage.SYSTEM),
+        hapticFeedback = preferences.getBoolean("hapticFeedback", true),
     )
 }

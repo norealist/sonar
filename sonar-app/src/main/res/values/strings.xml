@@ -86,6 +86,8 @@
     <string name="setting_high_res_desc">Core negotiates the actual device encoding</string>
     <string name="setting_audio_focus_title">Resume after audio focus loss</string>
     <string name="setting_audio_focus_desc">Resume only when playback was active before focus changed</string>
+    <string name="setting_haptic_feedback_title">Haptic feedback</string>
+    <string name="setting_haptic_feedback_desc">Vibrate on mode switches and interactive controls</string>
     <string name="setting_app_language_title">App language</string>
     <string name="setting_app_language_desc">Interface language</string>
     <string name="lang_system">System default</string>
