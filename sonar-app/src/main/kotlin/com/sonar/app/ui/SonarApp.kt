@@ -8,6 +8,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
@@ -1055,8 +1057,15 @@ private fun SettingsScreen(
     onLanguage: (AppLanguage) -> Unit,
     onVolume: (Float) -> Unit,
 ) {
+    val scrollState = rememberScrollState()
     Scaffold(containerColor = Color.Transparent) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(scrollState)
+                .padding(horizontal = 20.dp),
+        ) {
             Header(
                 stringResource(R.string.settings_title),
                 stringResource(R.string.settings_subtitle_audio_session),
@@ -1104,7 +1113,7 @@ private fun SettingsScreen(
             ) {
                 Text(if (importing) stringResource(R.string.state_scanning_caps) else stringResource(R.string.btn_select_audio_folder))
             }
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(28.dp))
             Surface(
                 color = Color.White.copy(alpha = .06f),
                 shape = RoundedCornerShape(16.dp),
@@ -1123,7 +1132,7 @@ private fun SettingsScreen(
                     Icon(Icons.Rounded.KeyboardArrowRight, contentDescription = stringResource(R.string.btn_about_app), tint = SonarMuted)
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(28.dp))
         }
     }
 }
