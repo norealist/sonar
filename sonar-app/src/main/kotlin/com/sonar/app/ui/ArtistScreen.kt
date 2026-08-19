@@ -224,7 +224,7 @@ private fun ArtistPortraitGrid(
     onTrack: (Track) -> Unit,
 ) {
     LazyColumn(
-        contentPadding = PaddingValues(bottom = 24.dp),
+        contentPadding = PaddingValues(bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
@@ -286,7 +286,7 @@ private fun ArtistPortraitList(
     onTrack: (Track) -> Unit,
 ) {
     LazyColumn(
-        contentPadding = PaddingValues(bottom = 24.dp),
+        contentPadding = PaddingValues(bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         item {
@@ -354,7 +354,7 @@ private fun ArtistExpandedLayout(
             LazyVerticalGrid(
                 columns = GridCells.Fixed(4),
                 modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(bottom = 24.dp),
+                contentPadding = PaddingValues(bottom = 120.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
@@ -381,7 +381,7 @@ private fun ArtistExpandedLayout(
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(bottom = 24.dp),
+                contentPadding = PaddingValues(bottom = 120.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 groups.forEachIndexed { groupIndex, group ->
