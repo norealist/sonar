@@ -66,6 +66,8 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import androidx.compose.ui.res.stringResource
+import com.sonar.app.R
 import com.sonar.app.data.DeezerArtistInfo
 import com.sonar.app.data.DeezerArtistState
 import com.sonar.app.data.isPrimaryArtist
@@ -82,7 +84,7 @@ private data class ArtistTrackGroup(
     val tracks: List<Track>,
 )
 
-private fun artistTrackGroups(artist: String, tracks: List<Track>): List<ArtistTrackGroup> {
+private fun artistTrackGroups(artist: String, tracks: List<Track>, sectionTitle: String): List<ArtistTrackGroup> {
     val (ownTracks, collaborationTracks) = tracks.partition { isPrimaryArtist(it.artist, artist) }
     val orderedTracks = ownTracks + collaborationTracks
     return if (orderedTracks.isEmpty()) {
@@ -90,7 +92,7 @@ private fun artistTrackGroups(artist: String, tracks: List<Track>): List<ArtistT
     } else {
         listOf(
             ArtistTrackGroup(
-                title = "ТРЕКИ НА УСТРОЙСТВЕ",
+                title = sectionTitle,
                 singles = ArtistCatalog.singlesForTracks(artist, orderedTracks),
                 tracks = orderedTracks,
             ),
@@ -116,7 +118,8 @@ fun ArtistScreen(
     val deezerInfo = deezerState.info
     val hero = rememberArtistArtwork(heroAsset, fallbackTrack, deezerInfo?.cachedPicturePath)
     val palette = hero.palette
-    val groups = artistTrackGroups(artist, tracks)
+    val sectionTitle = stringResource(R.string.artist_tracks_on_device)
+    val groups = artistTrackGroups(artist, tracks, sectionTitle)
 
     DisposableEffect(window) {
         if (window == null) return@DisposableEffect onDispose { }
@@ -423,7 +426,7 @@ private fun ArtistHeroCard(
         if (hero.bitmap != null) {
             Image(
                 bitmap = hero.bitmap.asImageBitmap(),
-                contentDescription = "Artwork for $artist",
+                contentDescription = stringResource(R.string.artist_cd_artwork, artist),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
@@ -446,7 +449,7 @@ private fun ArtistHeroCard(
                 .statusBarsPadding()
                 .padding(8.dp),
         ) {
-            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back", tint = Color.White)
+            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.btn_back), tint = Color.White)
         }
         Column(
             modifier = Modifier
@@ -502,8 +505,13 @@ private fun ArtistStatsPill(
                 modifier = Modifier
                     .size(width = 110.dp, height = 36.dp)
                     .clickable {
-                        val uri = Uri.parse(deezerLink)
-                        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                        runCatching {
+                            val uri = Uri.parse(deezerLink)
+                            val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(intent)
+                        }
                     },
             ) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -542,7 +550,7 @@ private fun ArtistSectionHeader(
         Text(
             text = title,
             color = Color.Black.copy(alpha = .65f),
-            fontFamily = PlayerDisplayFont,
+            fontFamily = RubikFont,
             fontSize = 14.1.sp,
             fontWeight = FontWeight.ExtraBold,
             letterSpacing = 1.5.sp,
@@ -614,7 +622,7 @@ private fun ArtistTile(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = playable?.let(::trackMeta) ?: "ИМПОРТИРУЙТЕ ТРЕК",
+                    text = playable?.let(::trackMeta) ?: stringResource(R.string.artist_import_track),
                     color = Color.White.copy(alpha = .45f),
                     fontFamily = PlayerBodyFont,
                     fontSize = 8.3.sp,
@@ -677,7 +685,7 @@ private fun ArtistList(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = playable?.let(::trackMeta) ?: "ИМПОРТИРУЙТЕ ТРЕК",
+                    text = playable?.let(::trackMeta) ?: stringResource(R.string.artist_import_track),
                     color = Color.White.copy(alpha = .4f),
                     fontFamily = PlayerBodyFont,
                     fontSize = 9.9.sp,
