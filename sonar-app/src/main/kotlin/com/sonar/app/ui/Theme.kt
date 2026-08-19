@@ -85,10 +85,17 @@ val UnboundedFont = FontFamily(
     Font(R.font.unbounded_black, FontWeight.Black),
 )
 
-fun displayFontFor(text: String): FontFamily {
-    val hasCyrillic = text.any { it in '\u0400'..'\u04FF' || it in '\u0500'..'\u052F' }
-    return if (hasCyrillic) UnboundedFont else PlayerDisplayFont
-}
+fun hasCyrillic(text: String): Boolean =
+    text.any { it in '\u0400'..'\u04FF' || it in '\u0500'..'\u052F' }
+
+fun displayFontFor(text: String): FontFamily =
+    if (hasCyrillic(text)) UnboundedFont else PlayerDisplayFont
+
+fun displayTrackTitleSpacing(text: String): androidx.compose.ui.unit.TextUnit =
+    if (hasCyrillic(text)) 0.15.sp else (-0.5).sp
+
+fun displayArtistSpacing(text: String): androidx.compose.ui.unit.TextUnit =
+    if (hasCyrillic(text)) 1.35.sp else 1.sp
 
 private val SonarTypography = Typography(
     displayLarge = TextStyle(fontFamily = SonarLogoFont, fontSize = 32.sp, fontWeight = FontWeight.Black, letterSpacing = 4.sp),

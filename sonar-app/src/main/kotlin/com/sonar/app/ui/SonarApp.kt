@@ -811,7 +811,7 @@ private fun ArtistHeader(
                 fontSize = if (artistName.length > 20) 18.4.sp else 22.4.sp,
                 fontFamily = displayFontFor(artistName),
                 fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 1.sp,
+                letterSpacing = displayArtistSpacing(artistName),
                 maxLines = 2,
                 textAlign = if (alignEnd) TextAlign.End else TextAlign.Start,
                 overflow = TextOverflow.Ellipsis,
@@ -877,7 +877,7 @@ private fun PlayerDetails(
                     transitionSpec = { (fadeIn(tween(180)) + scaleIn(initialScale = .96f, animationSpec = tween(180))) togetherWith (fadeOut(tween(140)) + scaleOut(targetScale = .96f, animationSpec = tween(140))) },
                     label = "trackTitleTransition",
                 ) { title ->
-                    Text(title, fontSize = titleSize, fontFamily = displayFontFor(title), fontWeight = FontWeight.ExtraBold, lineHeight = 22.9.sp, letterSpacing = (-0.5).sp, maxLines = 4, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 220.dp))
+                    Text(title, fontSize = titleSize, fontFamily = displayFontFor(title), fontWeight = FontWeight.ExtraBold, lineHeight = 22.9.sp, letterSpacing = displayTrackTitleSpacing(title), maxLines = 4, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 220.dp))
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable(onClick = onTimer).padding(horizontal = 8.dp, vertical = 3.dp)) {
