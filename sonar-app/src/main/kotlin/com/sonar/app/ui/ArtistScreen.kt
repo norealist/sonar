@@ -461,7 +461,7 @@ private fun ArtistHeroCard(
             Text(
                 text = artist.uppercase(),
                 color = Color.White,
-                fontFamily = PlayerDisplayFont,
+                fontFamily = displayFontFor(artist),
                 fontSize = 19.2.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 1.5.sp,
