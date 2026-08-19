@@ -12,6 +12,7 @@ local.properties
 *.iml
 .vscode/
 .kilo/
+.antigravitycli/
 kilo-buildAndroidApp.cmd
 kilo-buildArtistScreen.cmd
 
