@@ -100,8 +100,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.animation.core.animateFloatAsState
@@ -337,16 +340,21 @@ fun SonarApp(
             sheetState = sheetState,
             containerColor = SonarSurface,
         ) {
-            when (sheet) {
-                Sheet.QUEUE -> QueueSheet(player, viewModel::selectTrack) { viewModel.setSheet(null) }
-                Sheet.SLEEP_TIMER -> SleepSheet(
-                    timer = player.sleepTimer,
-                    onSet = { minutes -> viewModel.controller.setSleepTimer(minutes); viewModel.setSheet(null) },
-                    onCancel = viewModel.controller::cancelSleepTimer,
-                    onClose = { viewModel.setSheet(null) },
-                )
+            CompositionLocalProvider(
+                LocalContext provides context,
+                LocalConfiguration provides context.resources.configuration,
+            ) {
+                when (sheet) {
+                    Sheet.QUEUE -> QueueSheet(player, viewModel::selectTrack) { viewModel.setSheet(null) }
+                    Sheet.SLEEP_TIMER -> SleepSheet(
+                        timer = player.sleepTimer,
+                        onSet = { minutes -> viewModel.controller.setSleepTimer(minutes); viewModel.setSheet(null) },
+                        onCancel = viewModel.controller::cancelSleepTimer,
+                        onClose = { viewModel.setSheet(null) },
+                    )
+                }
+                Spacer(Modifier.height(22.dp))
             }
-            Spacer(Modifier.height(22.dp))
         }
     }
 
