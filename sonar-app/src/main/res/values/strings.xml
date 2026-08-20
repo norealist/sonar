@@ -103,7 +103,7 @@
     <!-- About Screen -->
     <string name="about_title">ABOUT</string>
     <string name="about_subtitle">SONAR MUSIC PLAYER</string>
-    <string name="about_version">v1.1</string>
+    <string name="about_version">v1.1.1</string>
     <string name="about_source_code">Source code</string>
 
     <!-- Errors -->
