@@ -1416,7 +1416,14 @@ private fun SleepSheet(
                         Text(stringResource(R.string.sleep_timer_stopping_in), color = SonarMuted, fontSize = 12.sp)
                         Text(formatMs(timer.remainingMs(now)), color = Color(0xFFFFB4AB), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
                     }
-                    Button(onClick = onCancel) { Text(stringResource(R.string.btn_turn_off)) }
+                    Button(
+                        onClick = onCancel,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White.copy(alpha = .14f),
+                            contentColor = Color.White,
+                        ),
+                    ) { Text(stringResource(R.string.btn_turn_off)) }
                 }
             }
         } else {
@@ -1437,9 +1444,32 @@ private fun SleepSheet(
                     SleepOptionButton(stringResource(R.string.sleep_option_custom), Modifier.fillMaxWidth()) { showCustom = true }
                 } else {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(custom, { custom = it.filter(Char::isDigit) }, label = { Text(stringResource(R.string.sleep_custom_minutes_label)) }, modifier = Modifier.weight(1f), singleLine = true)
+                        OutlinedTextField(
+                            value = custom,
+                            onValueChange = { custom = it.filter(Char::isDigit) },
+                            label = { Text(stringResource(R.string.sleep_custom_minutes_label)) },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            shape = RoundedCornerShape(14.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color.White.copy(alpha = .35f),
+                                unfocusedBorderColor = Color.White.copy(alpha = .12f),
+                                focusedLabelColor = Color.White.copy(alpha = .7f),
+                                unfocusedLabelColor = SonarMuted,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                cursorColor = Color.White,
+                            ),
+                        )
                         Spacer(Modifier.width(8.dp))
-                        Button(onClick = { custom.toIntOrNull()?.let { onSet(it.coerceIn(1, 600)); custom = "" } }) { Text(stringResource(R.string.btn_ok)) }
+                        Button(
+                            onClick = { custom.toIntOrNull()?.let { onSet(it.coerceIn(1, 600)); custom = "" } },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White.copy(alpha = .14f),
+                                contentColor = Color.White,
+                            ),
+                        ) { Text(stringResource(R.string.btn_ok)) }
                     }
                 }
             }
