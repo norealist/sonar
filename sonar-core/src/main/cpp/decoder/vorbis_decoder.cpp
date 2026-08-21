@@ -1,6 +1,17 @@
 #include "vorbis_decoder.h"
 
 #include <algorithm>
+#include <cstdio>
+
+#if defined(_WIN32)
+#include <io.h>
+inline int sonar_dup(int fd) { return _dup(fd); }
+inline int sonar_close_fd(int fd) { return _close(fd); }
+#else
+#include <unistd.h>
+inline int sonar_dup(int fd) { return ::dup(fd); }
+inline int sonar_close_fd(int fd) { return ::close(fd); }
+#endif
 
 #if defined(SONAR_HAS_VORBIS)
 #include <vorbis/vorbisfile.h>
@@ -21,7 +32,39 @@ VorbisDecoder::~VorbisDecoder() { close(); }
 ErrorCode VorbisDecoder::open(const std::string& path) {
     close();
 #if defined(SONAR_HAS_VORBIS)
-    if (ov_fopen(path.c_str(), &impl_->file) < 0) return ErrorCode::ERR_DECODER_INIT;
+    FILE* file = std::fopen(path.c_str(), "rb");
+    if (file == nullptr) return ErrorCode::ERR_FILE_NOT_FOUND;
+    return openFile(file);
+#else
+    (void)path;
+    return ErrorCode::ERR_UNSUPPORTED_FORMAT;
+#endif
+}
+
+ErrorCode VorbisDecoder::openFd(int fd) {
+    close();
+#if defined(SONAR_HAS_VORBIS)
+    if (fd < 0) return ErrorCode::ERR_FILE_NOT_FOUND;
+    int dupFd = sonar_dup(fd);
+    if (dupFd < 0) return ErrorCode::ERR_FILE_NOT_FOUND;
+    FILE* file = fdopen(dupFd, "rb");
+    if (file == nullptr) {
+        sonar_close_fd(dupFd);
+        return ErrorCode::ERR_FILE_READ;
+    }
+    return openFile(file);
+#else
+    (void)fd;
+    return ErrorCode::ERR_UNSUPPORTED_FORMAT;
+#endif
+}
+
+ErrorCode VorbisDecoder::openFile(FILE* file) {
+#if defined(SONAR_HAS_VORBIS)
+    if (ov_open_callbacks(file, &impl_->file, nullptr, 0, OV_CALLBACKS_DEFAULT) < 0) {
+        std::fclose(file);
+        return ErrorCode::ERR_DECODER_INIT;
+    }
     impl_->opened = true;
     const vorbis_info* stream = ov_info(&impl_->file, -1);
     const ogg_int64_t total = ov_pcm_total(&impl_->file, -1);
@@ -39,7 +82,7 @@ ErrorCode VorbisDecoder::open(const std::string& path) {
     positionFrames_ = 0;
     return ErrorCode::OK;
 #else
-    (void)path;
+    if (file != nullptr) std::fclose(file);
     return ErrorCode::ERR_UNSUPPORTED_FORMAT;
 #endif
 }

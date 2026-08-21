@@ -12,6 +12,8 @@ public:
     ~VorbisDecoder() override;
 
     ErrorCode open(const std::string& path) override;
+    ErrorCode openFd(int fd) override;
+    ErrorCode openFile(FILE* file);
     DecodeResult decodeNextFrame(float* output, std::size_t maxFrames) override;
     ErrorCode seek(std::int64_t positionMs) override;
     void close() noexcept override;

@@ -7,6 +7,16 @@
 #include <cstring>
 #include <limits>
 
+#if defined(_WIN32)
+#include <io.h>
+inline int sonar_dup(int fd) { return _dup(fd); }
+inline int sonar_close_fd(int fd) { return _close(fd); }
+#else
+#include <unistd.h>
+inline int sonar_dup(int fd) { return ::dup(fd); }
+inline int sonar_close_fd(int fd) { return ::close(fd); }
+#endif
+
 namespace sonar::core {
 namespace {
 
@@ -40,9 +50,26 @@ bool fourcc(const std::uint8_t* p, const char* value) noexcept {
 
 ErrorCode WavDecoder::open(const std::string& path) {
     close();
-    file_ = std::fopen(path.c_str(), "rb");
-    if (file_ == nullptr) return ErrorCode::ERR_FILE_NOT_FOUND;
+    FILE* file = std::fopen(path.c_str(), "rb");
+    if (file == nullptr) return ErrorCode::ERR_FILE_NOT_FOUND;
+    return openFile(file);
+}
 
+ErrorCode WavDecoder::openFd(int fd) {
+    close();
+    if (fd < 0) return ErrorCode::ERR_FILE_NOT_FOUND;
+    int dupFd = sonar_dup(fd);
+    if (dupFd < 0) return ErrorCode::ERR_FILE_NOT_FOUND;
+    FILE* file = fdopen(dupFd, "rb");
+    if (file == nullptr) {
+        sonar_close_fd(dupFd);
+        return ErrorCode::ERR_FILE_READ;
+    }
+    return openFile(file);
+}
+
+ErrorCode WavDecoder::openFile(FILE* file) {
+    file_ = file;
     if (std::fseek(file_, 0, SEEK_END) != 0) {
         close();
         return ErrorCode::ERR_FILE_READ;

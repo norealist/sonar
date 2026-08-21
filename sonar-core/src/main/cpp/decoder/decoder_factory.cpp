@@ -13,6 +13,16 @@
 #include <cstring>
 #include <string_view>
 
+#if defined(_WIN32)
+#include <io.h>
+inline int sonar_dup(int fd) { return _dup(fd); }
+inline int sonar_close_fd(int fd) { return _close(fd); }
+#else
+#include <unistd.h>
+inline int sonar_dup(int fd) { return ::dup(fd); }
+inline int sonar_close_fd(int fd) { return ::close(fd); }
+#endif
+
 namespace sonar::core {
 namespace {
 
@@ -34,15 +44,14 @@ bool hasBytes(const std::uint8_t* bytes, std::size_t length, std::string_view va
 
 } // namespace
 
-DecoderKind DecoderFactory::detect(const std::string& path) noexcept {
+DecoderKind DecoderFactory::detect(FILE* file) noexcept {
+    if (!file) return DecoderKind::Unsupported;
     std::array<std::uint8_t, 65536> buffer{};
-    std::size_t length = 0;
-    if (FILE* file = std::fopen(path.c_str(), "rb")) {
-        length = std::fread(buffer.data(), 1, buffer.size(), file);
-        std::fclose(file);
-    } else {
-        return DecoderKind::Unsupported;
-    }
+    const long origPos = std::ftell(file);
+    if (origPos < 0 || std::fseek(file, 0, SEEK_SET) != 0) return DecoderKind::Unsupported;
+    const std::size_t length = std::fread(buffer.data(), 1, buffer.size(), file);
+    std::fseek(file, origPos, SEEK_SET);
+
     if (length >= 12 && hasBytes(buffer.data(), length, "RIFF", 0) &&
         hasBytes(buffer.data(), length, "WAVE", 8)) return DecoderKind::Wav;
     if (length >= 4 && hasBytes(buffer.data(), length, "fLaC", 0)) return DecoderKind::Flac;
@@ -64,6 +73,15 @@ DecoderKind DecoderFactory::detect(const std::string& path) noexcept {
         }
     }
     if (id3 || mpegSync) return DecoderKind::Mp3;
+    return DecoderKind::Unsupported;
+}
+
+DecoderKind DecoderFactory::detect(const std::string& path) noexcept {
+    if (FILE* file = std::fopen(path.c_str(), "rb")) {
+        const DecoderKind kind = detect(file);
+        std::fclose(file);
+        if (kind != DecoderKind::Unsupported) return kind;
+    }
 
     // Extension is only a fallback hint when the content is not identifiable.
     const std::string extension = lowerExtension(path);
@@ -97,6 +115,50 @@ std::unique_ptr<IDecoder> DecoderFactory::create(const std::string& path,
                 return nullptr;
         }
         const ErrorCode openError = decoder->open(path);
+        if (openError != ErrorCode::OK) {
+            if (error != nullptr) *error = openError;
+            return nullptr;
+        }
+        return decoder;
+    } catch (...) {
+        if (error != nullptr) *error = ErrorCode::ERR_INTERNAL;
+        return nullptr;
+    }
+}
+
+std::unique_ptr<IDecoder> DecoderFactory::createFd(int fd, ErrorCode* error) noexcept {
+    try {
+        if (error != nullptr) *error = ErrorCode::OK;
+        if (fd < 0) {
+            if (error != nullptr) *error = ErrorCode::ERR_FILE_NOT_FOUND;
+            return nullptr;
+        }
+        int dupFd = sonar_dup(fd);
+        if (dupFd < 0) {
+            if (error != nullptr) *error = ErrorCode::ERR_FILE_NOT_FOUND;
+            return nullptr;
+        }
+        FILE* probeFile = fdopen(dupFd, "rb");
+        if (!probeFile) {
+            sonar_close_fd(dupFd);
+            if (error != nullptr) *error = ErrorCode::ERR_FILE_READ;
+            return nullptr;
+        }
+        const DecoderKind kind = detect(probeFile);
+        std::fclose(probeFile); // Closes dupFd
+
+        std::unique_ptr<IDecoder> decoder;
+        switch (kind) {
+            case DecoderKind::Wav: decoder = std::make_unique<WavDecoder>(); break;
+            case DecoderKind::Mp3: decoder = std::make_unique<Mp3Decoder>(); break;
+            case DecoderKind::Opus: decoder = std::make_unique<OpusDecoder>(); break;
+            case DecoderKind::Vorbis: decoder = std::make_unique<VorbisDecoder>(); break;
+            case DecoderKind::Flac: decoder = std::make_unique<FlacDecoder>(); break;
+            case DecoderKind::Unsupported:
+                if (error != nullptr) *error = ErrorCode::ERR_UNSUPPORTED_FORMAT;
+                return nullptr;
+        }
+        const ErrorCode openError = decoder->openFd(fd);
         if (openError != ErrorCode::OK) {
             if (error != nullptr) *error = openError;
             return nullptr;

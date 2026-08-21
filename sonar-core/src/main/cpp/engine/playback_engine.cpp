@@ -106,6 +106,58 @@ ErrorCode PlaybackEngine::open(const std::string& path) {
     return ErrorCode::OK;
 }
 
+ErrorCode PlaybackEngine::openFd(int fd) {
+    stop();
+    ErrorCode factoryError = ErrorCode::OK;
+    auto decoder = DecoderFactory::createFd(fd, &factoryError);
+    if (!decoder) {
+        setError(factoryError == ErrorCode::OK ? ErrorCode::ERR_DECODER_INIT : factoryError,
+                 errorText(factoryError));
+        state_.store(PlayerState::ERROR, std::memory_order_release);
+        return factoryError == ErrorCode::OK ? ErrorCode::ERR_DECODER_INIT : factoryError;
+    }
+    const StreamInfo stream = decoder->getStreamInfo();
+    if (stream.sampleRate <= 0 || stream.channels < 1 || stream.channels > 2) {
+        decoder->close();
+        setError(ErrorCode::ERR_UNSUPPORTED_FORMAT, errorText(ErrorCode::ERR_UNSUPPORTED_FORMAT));
+        state_.store(PlayerState::ERROR, std::memory_order_release);
+        return ErrorCode::ERR_UNSUPPORTED_FORMAT;
+    }
+    const std::size_t ringFrames = std::max<std::size_t>(1,
+        static_cast<std::size_t>((static_cast<std::uint64_t>(stream.sampleRate) * config_.ringDurationMs) / 1000));
+    const std::size_t decodeFrames = std::max(config_.decodeChunkFrames, std::size_t{1});
+    try {
+        auto ring = std::make_shared<RingBuffer>(ringFrames, static_cast<std::size_t>(stream.channels));
+        std::vector<float> decodeBuffer(decodeFrames * static_cast<std::size_t>(stream.channels));
+        std::vector<float> readBuffer(decodeFrames * static_cast<std::size_t>(stream.channels));
+        std::lock_guard<std::mutex> lock(stateMutex_);
+        decoder_ = std::move(decoder);
+        ring_ = std::move(ring);
+        decodeBuffer_ = std::move(decodeBuffer);
+        readBuffer_ = std::move(readBuffer);
+        info_ = stream;
+        requestedSampleRate_ = stream.sampleRate;
+        requestedChannels_ = stream.channels;
+        activeSampleRate_.store(stream.sampleRate, std::memory_order_release);
+        prebufferFrames_ = std::min(ringFrames, std::max<std::size_t>(1,
+            ringFrames * std::min<std::size_t>(config_.prebufferPercent, 100) / 100));
+        playedFrames_.store(0, std::memory_order_relaxed);
+        consecutiveDecodeErrors_ = 0;
+        {
+            std::lock_guard<std::mutex> errorLock(errorMutex_);
+            lastError_ = ErrorCode::OK;
+            errorMessage_.clear();
+        }
+        state_.store(PlayerState::OPENED, std::memory_order_release);
+    } catch (...) {
+        if (decoder) decoder->close();
+        setError(ErrorCode::ERR_INTERNAL, errorText(ErrorCode::ERR_INTERNAL));
+        state_.store(PlayerState::ERROR, std::memory_order_release);
+        return ErrorCode::ERR_INTERNAL;
+    }
+    return ErrorCode::OK;
+}
+
 ErrorCode PlaybackEngine::play() {
     std::lock_guard<std::mutex> lock(stateMutex_);
     const PlayerState current = state_.load(std::memory_order_relaxed);

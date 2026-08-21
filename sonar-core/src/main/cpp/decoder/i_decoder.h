@@ -13,6 +13,7 @@ public:
     virtual ~IDecoder() = default;
 
     virtual ErrorCode open(const std::string& path) = 0;
+    virtual ErrorCode openFd(int fd) = 0;
     virtual DecodeResult decodeNextFrame(float* interleavedOutput,
                                          std::size_t maxFrames) = 0;
     virtual ErrorCode seek(std::int64_t positionMs) = 0;

@@ -3,6 +3,16 @@
 #include <algorithm>
 #include <memory>
 
+#if defined(_WIN32)
+#include <io.h>
+inline int sonar_dup(int fd) { return _dup(fd); }
+inline int sonar_close_fd(int fd) { return _close(fd); }
+#else
+#include <unistd.h>
+inline int sonar_dup(int fd) { return ::dup(fd); }
+inline int sonar_close_fd(int fd) { return ::close(fd); }
+#endif
+
 #if defined(SONAR_HAS_OPUSFILE)
 #include <opusfile.h>
 #endif
@@ -28,8 +38,7 @@ ErrorCode OpusDecoder::open(const std::string& path) {
     const int channels = op_channel_count(impl_->file, -1);
     if (head == nullptr || channels < 1 || channels > 2) {
         close();
-        return head == nullptr ? ErrorCode::ERR_UNSUPPORTED_FORMAT
-                               : ErrorCode::ERR_UNSUPPORTED_FORMAT;
+        return ErrorCode::ERR_UNSUPPORTED_FORMAT;
     }
     const ogg_int64_t total = op_pcm_total(impl_->file, -1);
     info_.sampleRate = 48000;
@@ -41,6 +50,44 @@ ErrorCode OpusDecoder::open(const std::string& path) {
     return ErrorCode::OK;
 #else
     (void)path;
+    return ErrorCode::ERR_UNSUPPORTED_FORMAT;
+#endif
+}
+
+ErrorCode OpusDecoder::openFd(int fd) {
+    close();
+#if defined(SONAR_HAS_OPUSFILE)
+    if (fd < 0) return ErrorCode::ERR_FILE_NOT_FOUND;
+    int dupFd = sonar_dup(fd);
+    if (dupFd < 0) return ErrorCode::ERR_FILE_NOT_FOUND;
+    OpusFileCallbacks cb{};
+    void* stream = op_fdopen(&cb, dupFd, "rb");
+    if (stream == nullptr) {
+        sonar_close_fd(dupFd);
+        return ErrorCode::ERR_DECODER_INIT;
+    }
+    int error = 0;
+    impl_->file = op_open_callbacks(stream, &cb, nullptr, 0, &error);
+    if (impl_->file == nullptr) {
+        cb.close(stream);
+        return ErrorCode::ERR_DECODER_INIT;
+    }
+    const OpusHead* head = op_head(impl_->file, -1);
+    const int channels = op_channel_count(impl_->file, -1);
+    if (head == nullptr || channels < 1 || channels > 2) {
+        close();
+        return ErrorCode::ERR_UNSUPPORTED_FORMAT;
+    }
+    const ogg_int64_t total = op_pcm_total(impl_->file, -1);
+    info_.sampleRate = 48000;
+    info_.channels = channels;
+    info_.sourceBitDepth = 16;
+    info_.durationMs = total >= 0 ? static_cast<std::int64_t>(total * 1000 / 48000) : -1;
+    info_.codec = "opus";
+    positionFrames_ = 0;
+    return ErrorCode::OK;
+#else
+    (void)fd;
     return ErrorCode::ERR_UNSUPPORTED_FORMAT;
 #endif
 }

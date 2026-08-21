@@ -173,6 +173,12 @@ Java_com_sonar_core_NativeBridge_nativeOpen(JNIEnv* env, jclass, jlong handle, j
 }
 
 extern "C" JNIEXPORT jint JNICALL
+Java_com_sonar_core_NativeBridge_nativeOpenFd(JNIEnv* env, jclass, jlong handle, jint fd) noexcept {
+    if (fd < 0) return static_cast<jint>(ErrorCode::ERR_FILE_NOT_FOUND);
+    return handleResult(env, handle, [fd](PlaybackEngine& engine) { return engine.openFd(fd); });
+}
+
+extern "C" JNIEXPORT jint JNICALL
 Java_com_sonar_core_NativeBridge_nativePlay(JNIEnv* env, jclass, jlong handle) noexcept {
     return handleResult(env, handle, [](PlaybackEngine& engine) { return engine.play(); });
 }

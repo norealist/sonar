@@ -17,6 +17,9 @@ object NativeBridge {
     external fun nativeOpen(handle: Long, filePath: String): Int
 
     @JvmStatic
+    external fun nativeOpenFd(handle: Long, fd: Int): Int
+
+    @JvmStatic
     external fun nativePlay(handle: Long): Int
 
     @JvmStatic

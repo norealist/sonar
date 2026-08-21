@@ -28,6 +28,7 @@ public:
     PlaybackEngine& operator=(const PlaybackEngine&) = delete;
 
     ErrorCode open(const std::string& path);
+    ErrorCode openFd(int fd);
     ErrorCode play();
     ErrorCode pause();
     ErrorCode resume();

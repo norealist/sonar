@@ -87,19 +87,18 @@ class SonarPlayer(
     fun open(uri: Uri): SonarError = synchronized(lock) {
         activePfd?.close()
         activePfd = null
-        val path = try {
-            if (uri.scheme == "file") {
-                requireNotNull(uri.path)
-            } else {
-                val pfd = appContext.contentResolver.openFileDescriptor(uri, "r")
-                    ?: throw IOException("Unable to open file descriptor for $uri")
-                activePfd = pfd
-                "/proc/self/fd/${pfd.fd}"
-            }
+        if (uri.scheme == "file") {
+            val path = requireNotNull(uri.path)
+            return openPathLocked(path)
+        }
+        val pfd = try {
+            appContext.contentResolver.openFileDescriptor(uri, "r")
+                ?: throw IOException("Unable to open file descriptor for $uri")
         } catch (_: Exception) {
             return@synchronized SonarError.ERR_FILE_READ.also { lastError = it }
         }
-        openPathLocked(path)
+        activePfd = pfd
+        openFdLocked(pfd.fd)
     }
 
     fun play(): SonarError = synchronized(lock) {
@@ -204,6 +203,43 @@ class SonarPlayer(
         currentStream = null
         NativeBridge.nativeStop(nativeHandle)
         val openCode = NativeBridge.nativeOpen(nativeHandle, filePath)
+        if (openCode != SonarError.OK.code) {
+            activePfd?.close()
+            activePfd = null
+            return recordErrorLocked(openCode)
+        }
+        val info = NativeBridge.nativeGetStreamInfo(nativeHandle)
+        if (info == null) {
+            activePfd?.close()
+            activePfd = null
+            return recordErrorLocked(SonarError.ERR_INTERNAL.code)
+        }
+        negotiator.beginOpen()
+        val negotiated = negotiateLocked(info)
+        currentStream = info
+        try {
+            track = createTrackWithFallbackLocked(info, negotiated)
+        } catch (_: Throwable) {
+            NativeBridge.nativeStop(nativeHandle)
+            activePfd?.close()
+            activePfd = null
+            return recordErrorLocked(SonarError.ERR_OUTPUT_FORMAT.code)
+        }
+        clearErrorLocked()
+        return SonarError.OK
+    }
+
+    private fun openFdLocked(fd: Int): SonarError {
+        if (nativeHandle == 0L || fd < 0) {
+            activePfd?.close()
+            activePfd = null
+            return recordErrorLocked(SonarError.ERR_FILE_NOT_FOUND.code)
+        }
+        track?.release()
+        track = null
+        currentStream = null
+        NativeBridge.nativeStop(nativeHandle)
+        val openCode = NativeBridge.nativeOpenFd(nativeHandle, fd)
         if (openCode != SonarError.OK.code) {
             activePfd?.close()
             activePfd = null

@@ -3,10 +3,29 @@
 #include <cstdio>
 #include <memory>
 
+#if defined(_WIN32)
+#include <io.h>
+inline int sonar_dup(int fd) { return _dup(fd); }
+inline int sonar_close_fd(int fd) { return _close(fd); }
+#else
+#include <unistd.h>
+inline int sonar_dup(int fd) { return ::dup(fd); }
+inline int sonar_close_fd(int fd) { return ::close(fd); }
+#endif
+
 #if defined(SONAR_HAS_MINIMP3)
 #define MINIMP3_FLOAT_OUTPUT
 #define MINIMP3_IMPLEMENTATION
 #include "minimp3_ex.h"
+
+namespace {
+size_t mp3ReadCb(void* buf, size_t size, void* user_data) {
+    return std::fread(buf, 1, size, static_cast<FILE*>(user_data));
+}
+int mp3SeekCb(uint64_t position, void* user_data) {
+    return std::fseek(static_cast<FILE*>(user_data), static_cast<long>(position), SEEK_SET);
+}
+} // namespace
 #endif
 
 namespace sonar::core {
@@ -14,6 +33,8 @@ namespace sonar::core {
 struct Mp3Decoder::Impl {
 #if defined(SONAR_HAS_MINIMP3)
     mp3dec_ex_t decoder{};
+    mp3dec_io_t io{};
+    FILE* file = nullptr;
     bool open = false;
 #endif
 };
@@ -24,7 +45,42 @@ Mp3Decoder::~Mp3Decoder() { close(); }
 ErrorCode Mp3Decoder::open(const std::string& path) {
     close();
 #if defined(SONAR_HAS_MINIMP3)
-    if (mp3dec_ex_open(&impl_->decoder, path.c_str(), MP3D_SEEK_TO_SAMPLE) != 0) {
+    FILE* file = std::fopen(path.c_str(), "rb");
+    if (file == nullptr) return ErrorCode::ERR_FILE_NOT_FOUND;
+    return openFile(file);
+#else
+    (void)path;
+    return ErrorCode::ERR_UNSUPPORTED_FORMAT;
+#endif
+}
+
+ErrorCode Mp3Decoder::openFd(int fd) {
+    close();
+#if defined(SONAR_HAS_MINIMP3)
+    if (fd < 0) return ErrorCode::ERR_FILE_NOT_FOUND;
+    int dupFd = sonar_dup(fd);
+    if (dupFd < 0) return ErrorCode::ERR_FILE_NOT_FOUND;
+    FILE* file = fdopen(dupFd, "rb");
+    if (file == nullptr) {
+        sonar_close_fd(dupFd);
+        return ErrorCode::ERR_FILE_READ;
+    }
+    return openFile(file);
+#else
+    (void)fd;
+    return ErrorCode::ERR_UNSUPPORTED_FORMAT;
+#endif
+}
+
+ErrorCode Mp3Decoder::openFile(FILE* file) {
+#if defined(SONAR_HAS_MINIMP3)
+    impl_->file = file;
+    impl_->io.read = mp3ReadCb;
+    impl_->io.read_data = file;
+    impl_->io.seek = mp3SeekCb;
+    impl_->io.seek_data = file;
+    if (mp3dec_ex_open_cb(&impl_->decoder, &impl_->io, MP3D_SEEK_TO_SAMPLE) != 0) {
+        close();
         return ErrorCode::ERR_DECODER_INIT;
     }
     impl_->open = true;
@@ -44,7 +100,7 @@ ErrorCode Mp3Decoder::open(const std::string& path) {
     positionSamples_ = 0;
     return ErrorCode::OK;
 #else
-    (void)path;
+    if (file != nullptr) std::fclose(file);
     return ErrorCode::ERR_UNSUPPORTED_FORMAT;
 #endif
 }
@@ -83,8 +139,14 @@ ErrorCode Mp3Decoder::seek(std::int64_t positionMs) {
 
 void Mp3Decoder::close() noexcept {
 #if defined(SONAR_HAS_MINIMP3)
-    if (impl_ && impl_->open) mp3dec_ex_close(&impl_->decoder);
-    if (impl_) impl_->open = false;
+    if (impl_ && impl_->open) {
+        mp3dec_ex_close(&impl_->decoder);
+        impl_->open = false;
+    }
+    if (impl_ && impl_->file) {
+        std::fclose(impl_->file);
+        impl_->file = nullptr;
+    }
 #endif
     info_ = {};
     positionSamples_ = 0;
