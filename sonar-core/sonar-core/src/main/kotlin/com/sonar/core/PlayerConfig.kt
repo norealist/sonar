@@ -1,10 +1,10 @@
 package com.sonar.core
 
 data class PlayerConfig(
-    val desiredLatencyMs: Int = 40,
+    val desiredLatencyMs: Int = 250,
     val writeChunkFrames: Int = 2048,
-    val ringDurationMs: Int = 200,
-    val prebufferPercent: Int = 50,
+    val ringDurationMs: Int = 1000,
+    val prebufferPercent: Int = 25,
     val maxConsecutiveDecodeErrors: Int = 50,
 ) {
     init {

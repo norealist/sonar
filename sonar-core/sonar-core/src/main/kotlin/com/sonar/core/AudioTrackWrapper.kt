@@ -41,6 +41,7 @@ class AudioTrackWrapper(
             throw IllegalStateException("AudioTrack rejected the output format")
         }
         val desired = streamInfo.sampleRate * config.desiredLatencyMs / 1000 * frameBytes
+        val bufferSize = max(minimum * 2, desired)
         return AudioTrack.Builder()
             .setAudioAttributes(
                 AudioAttributes.Builder()
@@ -55,7 +56,7 @@ class AudioTrackWrapper(
                     .setChannelMask(channelMask)
                     .build(),
             )
-            .setBufferSizeInBytes(max(minimum, desired))
+            .setBufferSizeInBytes(bufferSize)
             .setTransferMode(AudioTrack.MODE_STREAM)
             .setSessionId(sessionId)
             .build()
@@ -119,9 +120,18 @@ class AudioTrackWrapper(
     }
 
     private fun writeLoop() {
+        try {
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO)
+        } catch (_: Exception) {}
+
         while (true) {
             synchronized(lock) {
                 if (!active) return
+            }
+            if (audioTrack.playState != AudioTrack.PLAYSTATE_PLAYING) {
+                try {
+                    audioTrack.play()
+                } catch (_: Exception) {}
             }
             pcmBuffer.clear()
             val frames = try {
