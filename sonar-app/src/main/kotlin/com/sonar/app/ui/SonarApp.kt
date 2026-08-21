@@ -150,6 +150,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.annotation.StringRes
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
+import com.sonar.app.BatteryOptimizationHelper
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
 import com.sonar.app.R
 import com.sonar.app.data.AppLanguage
 import com.sonar.app.PlayerViewModel
@@ -183,6 +186,26 @@ fun SonarApp(
     val miniTrack = player.selectedTrack ?: lastSelectedTrack ?: library.tracks.firstOrNull { it.id == settings.selectedTrackId }
     val snackbar = remember { SnackbarHostState() }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    var batteryPromptShown by remember { mutableStateOf(false) }
+    val batteryPromptMsg = stringResource(R.string.battery_opt_prompt_message)
+    val batteryPromptAction = stringResource(R.string.battery_opt_prompt_action)
+
+    LaunchedEffect(player.isPlaying) {
+        if (player.isPlaying && !batteryPromptShown) {
+            if (!BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)) {
+                batteryPromptShown = true
+                val result = snackbar.showSnackbar(
+                    message = batteryPromptMsg,
+                    actionLabel = batteryPromptAction,
+                    duration = SnackbarDuration.Long,
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(context)
+                }
+            }
+        }
+    }
 
     LaunchedEffect(screen, navBackStackEntry?.destination?.route, player.selectedTrack?.id) {
         if (screen != AppScreen.PLAYER && nav.currentDestination?.route != screen.route) {
@@ -1109,6 +1132,20 @@ private fun SettingsScreen(
                 hapticFeedback,
                 onHapticFeedback,
             )
+            val context = LocalContext.current
+            var isBatteryOptIgnored by remember {
+                mutableStateOf(BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context))
+            }
+            SettingActionRow(
+                title = stringResource(R.string.setting_battery_opt_title),
+                detail = stringResource(R.string.setting_battery_opt_desc),
+                badge = stringResource(if (isBatteryOptIgnored) R.string.setting_battery_opt_unrestricted else R.string.setting_battery_opt_restricted),
+                badgeActive = isBatteryOptIgnored,
+                onClick = {
+                    BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(context)
+                    isBatteryOptIgnored = BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
+                },
+            )
             SettingLanguageRow(current = currentLanguage, onSelect = onLanguage)
             SectionLabel(stringResource(R.string.section_volume), Modifier.padding(top = 16.dp))
             Slider(
@@ -1324,6 +1361,42 @@ private fun AboutScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SettingActionRow(
+    title: String,
+    detail: String,
+    badge: String,
+    badgeActive: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.SemiBold)
+            Text(detail, color = SonarMuted, fontSize = 12.sp)
+        }
+        Surface(
+            color = if (badgeActive) SonarControlSurface.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.08f),
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, if (badgeActive) SonarControlSurface.copy(alpha = 0.4f) else Color.White.copy(alpha = 0.12f)),
+        ) {
+            Text(
+                text = badge,
+                color = if (badgeActive) SonarControlSurface else Color.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            )
         }
     }
 }

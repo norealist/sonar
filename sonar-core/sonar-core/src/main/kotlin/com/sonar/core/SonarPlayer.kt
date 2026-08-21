@@ -6,6 +6,7 @@ import android.os.ParcelFileDescriptor
 import android.media.AudioFormat
 import java.io.File
 import java.io.IOException
+import android.os.PowerManager
 
 class SonarPlayer(
     context: Context,
@@ -15,6 +16,12 @@ class SonarPlayer(
     private val appContext = context.applicationContext
     private val lock = Any()
     private val sessionManager = SessionManager(appContext)
+    private val wakeLock: PowerManager.WakeLock? = runCatching {
+        (appContext.getSystemService(Context.POWER_SERVICE) as? PowerManager)
+            ?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Sonar:CoreWakeLock")
+            ?.apply { setReferenceCounted(false) }
+    }.getOrNull()
+
     private var nativeHandle: Long = NativeBridge.nativeCreateEngine(
         48_000,
         AudioFormat.ENCODING_PCM_16BIT,
@@ -106,6 +113,7 @@ class SonarPlayer(
         if (code != SonarError.OK.code) return@synchronized recordErrorLocked(code)
         try {
             track?.start()
+            runCatching { if (wakeLock?.isHeld != true) wakeLock?.acquire(3600 * 1000L) }
             clearErrorLocked()
             SonarError.OK
         } catch (_: Throwable) {
@@ -117,12 +125,16 @@ class SonarPlayer(
     fun pause(): SonarError = synchronized(lock) {
         val code = NativeBridge.nativePause(nativeHandle)
         if (code == SonarError.OK.code) track?.pause()
+        runCatching { if (wakeLock?.isHeld == true) wakeLock?.release() }
         recordResultLocked(code)
     }
 
     fun resume(): SonarError = synchronized(lock) {
         val code = NativeBridge.nativeResume(nativeHandle)
-        if (code == SonarError.OK.code) track?.resume()
+        if (code == SonarError.OK.code) {
+            track?.resume()
+            runCatching { if (wakeLock?.isHeld != true) wakeLock?.acquire(3600 * 1000L) }
+        }
         recordResultLocked(code)
     }
 
@@ -133,6 +145,7 @@ class SonarPlayer(
         currentStream = null
         activePfd?.close()
         activePfd = null
+        runCatching { if (wakeLock?.isHeld == true) wakeLock?.release() }
         recordResultLocked(code)
     }
 
@@ -186,6 +199,7 @@ class SonarPlayer(
             track = null
             activePfd?.close()
             activePfd = null
+            runCatching { if (wakeLock?.isHeld == true) wakeLock?.release() }
             NativeBridge.nativeDestroyEngine(nativeHandle)
             nativeHandle = 0L
             currentStream = null

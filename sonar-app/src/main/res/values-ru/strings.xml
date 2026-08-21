@@ -90,6 +90,12 @@
     <string name="setting_audio_focus_desc">Возобновлять, только если воспроизведение было активно до потери фокуса</string>
     <string name="setting_haptic_feedback_title">Виброотклик</string>
     <string name="setting_haptic_feedback_desc">Вибрация при смене режимов и удержании кнопок</string>
+    <string name="setting_battery_opt_title">Работа в фоне без ограничений</string>
+    <string name="setting_battery_opt_desc">Разрешить работу без ограничений для бесперебойного воспроизведения</string>
+    <string name="setting_battery_opt_unrestricted">Без ограничений</string>
+    <string name="setting_battery_opt_restricted">Ограничено</string>
+    <string name="battery_opt_prompt_message">Для стабильного воспроизведения в фоне разрешите работу Sonar без ограничений.</string>
+    <string name="battery_opt_prompt_action">РАЗРЕШИТЬ</string>
     <string name="setting_app_language_title">Язык приложения</string>
     <string name="setting_app_language_desc">Язык интерфейса</string>
     <string name="lang_system">Как в системе</string>
