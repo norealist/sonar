@@ -18,6 +18,7 @@ import com.sonar.app.data.SettingsRepository
 import com.sonar.app.data.Sheet
 import com.sonar.app.data.Track
 import com.sonar.app.player.AppPlayerController
+import com.sonar.app.player.PlayerControllerHolder
 import com.sonar.app.player.PlayerUiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -33,7 +34,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val settings: SettingsRepository = PersistentSettingsRepository(application)
     private val metadata = MediaMetadataRepository(application)
     private val deezerArtists = DeezerArtistRepository(application)
-    val controller = AppPlayerController(application, settings)
+    val controller = PlayerControllerHolder.getOrCreate(application, settings)
 
     private val mutableScreen = MutableStateFlow(AppScreen.LIBRARY)
     private val mutableArtist = MutableStateFlow<String?>(null)

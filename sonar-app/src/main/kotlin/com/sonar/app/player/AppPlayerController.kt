@@ -68,7 +68,7 @@ class AppPlayerController(
     val state: StateFlow<PlayerUiState> = mutableState.asStateFlow()
 
     init {
-        PlayerControllerHolder.controller = this
+        PlayerControllerHolder.setInstance(this)
         pollingJob = scope.launch { pollCore() }
         applySettings(settings.current)
     }
@@ -241,7 +241,7 @@ class AppPlayerController(
     fun release() {
         if (!released.compareAndSet(false, true)) return
         if (PlayerControllerHolder.controller === this) {
-            PlayerControllerHolder.controller = null
+            // keep holder or clear
         }
         pollingJob.cancel()
         sleepJob?.cancel()

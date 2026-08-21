@@ -15,12 +15,15 @@ import android.graphics.BitmapFactory
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
-import android.net.Uri
+import android.media.MediaMetadataRetriever
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
+import android.os.SystemClock
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
+import android.util.LruCache
 import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
 import com.sonar.app.MainActivity
@@ -44,11 +47,19 @@ class MediaPlaybackService : Service() {
     private lateinit var mediaSession: MediaSessionCompat
     private lateinit var notificationManager: NotificationManager
     private lateinit var audioManager: AudioManager
+    private lateinit var powerManager: PowerManager
 
+    private var wakeLock: PowerManager.WakeLock? = null
     private var audioFocusRequest: AudioFocusRequest? = null
     private var hasAudioFocus = false
     private var resumeOnFocusGain = false
     private var isForegroundService = false
+
+    private val artworkCache = LruCache<String, Bitmap>(20)
+
+    private var lastTrackId: String? = null
+    private var lastIsPlaying: Boolean? = null
+    private var lastCoreState: PlayerState? = null
 
     private val noisyReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -80,7 +91,7 @@ class MediaPlaybackService : Service() {
                 }
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                // Audio ducking if needed
+                // Duck volume if supported
             }
             AudioManager.AUDIOFOCUS_GAIN -> {
                 hasAudioFocus = true
@@ -98,10 +109,20 @@ class MediaPlaybackService : Service() {
         super.onCreate()
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Sonar:MediaPlaybackWakeLock").apply {
+            setReferenceCounted(false)
+        }
 
         createNotificationChannel()
         setupMediaSession()
         registerNoisyReceiver()
+
+        // Immediate startForeground with initial notification to satisfy Android 5-second startup requirement
+        val initialNotification = buildNotification(null, isPlaying = false, artwork = null)
+        startForegroundServiceInternal(initialNotification)
+
         observePlayerState()
     }
 
@@ -132,7 +153,7 @@ class MediaPlaybackService : Service() {
                 stopSelf()
             }
             ACTION_START_SERVICE -> {
-                // Ensure service is running and observing state
+                observePlayerState()
             }
         }
         return START_STICKY
@@ -144,6 +165,7 @@ class MediaPlaybackService : Service() {
         serviceScope.cancel()
         unregisterNoisyReceiver()
         abandonAudioFocus()
+        releaseWakeLock()
         if (::mediaSession.isInitialized) {
             mediaSession.isActive = false
             mediaSession.release()
@@ -197,14 +219,53 @@ class MediaPlaybackService : Service() {
             val controller = PlayerControllerHolder.controller
             if (controller != null) {
                 controller.state.collectLatest { state ->
-                    updateMediaSession(state)
-                    updateNotification(state)
+                    handleStateUpdate(state)
                 }
             }
         }
     }
 
-    private fun updateMediaSession(state: PlayerUiState) {
+    private fun handleStateUpdate(state: PlayerUiState) {
+        val currentTrack = state.selectedTrack
+        val isPlaying = state.isPlaying
+        val coreState = state.coreState
+
+        val trackChanged = currentTrack?.id != lastTrackId
+        val playStateChanged = isPlaying != lastIsPlaying || coreState != lastCoreState
+
+        // Manage WakeLock to prevent CPU sleeping during background playback
+        if (isPlaying) {
+            acquireWakeLock()
+            if (!hasAudioFocus) requestAudioFocus()
+        } else {
+            releaseWakeLock()
+        }
+
+        if (trackChanged || playStateChanged) {
+            lastTrackId = currentTrack?.id
+            lastIsPlaying = isPlaying
+            lastCoreState = coreState
+
+            updateMediaSessionState(state)
+
+            if (currentTrack != null) {
+                serviceScope.launch(Dispatchers.IO) {
+                    val cachedArt = artworkCache.get(currentTrack.id) ?: loadArtwork(currentTrack)?.also {
+                        artworkCache.put(currentTrack.id, it)
+                    }
+                    withContext(Dispatchers.Main.immediate) {
+                        updateMediaSessionMetadata(currentTrack, cachedArt)
+                        updateNotificationUi(currentTrack, isPlaying, cachedArt)
+                    }
+                }
+            } else {
+                updateMediaSessionMetadata(null, null)
+                updateNotificationUi(null, isPlaying, null)
+            }
+        }
+    }
+
+    private fun updateMediaSessionState(state: PlayerUiState) {
         if (!::mediaSession.isInitialized) return
 
         val playbackState = when (state.coreState) {
@@ -230,62 +291,47 @@ class MediaPlaybackService : Service() {
                 .setState(
                     playbackState,
                     state.positionMs,
-                    if (state.isPlaying) 1.0f else 0.0f
+                    if (state.isPlaying) 1.0f else 0.0f,
+                    SystemClock.elapsedRealtime()
                 )
                 .build()
         )
-
-        val track = state.selectedTrack
-        if (track != null) {
-            val metadataBuilder = MediaMetadataCompat.Builder()
-                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, track.title)
-                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, track.artist)
-                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, track.album)
-                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, track.durationMs)
-
-            serviceScope.launch(Dispatchers.IO) {
-                val artworkBitmap = loadArtwork(track)
-                if (artworkBitmap != null) {
-                    metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, artworkBitmap)
-                    metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, artworkBitmap)
-                }
-                withContext(Dispatchers.Main.immediate) {
-                    mediaSession.setMetadata(metadataBuilder.build())
-                }
-            }
-        } else {
-            mediaSession.setMetadata(null)
-        }
     }
 
-    private fun updateNotification(state: PlayerUiState) {
-        val track = state.selectedTrack
-        if (track == null && state.coreState == PlayerState.IDLE) {
-            if (isForegroundService) {
-                stopForegroundInternal()
-            }
+    private fun updateMediaSessionMetadata(track: Track?, artwork: Bitmap?) {
+        if (!::mediaSession.isInitialized) return
+        if (track == null) {
+            mediaSession.setMetadata(null)
             return
         }
 
-        val isPlaying = state.isPlaying
-        if (isPlaying && !hasAudioFocus) {
-            requestAudioFocus()
+        val builder = MediaMetadataCompat.Builder()
+            .putString(MediaMetadataCompat.METADATA_KEY_TITLE, track.title)
+            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, track.artist)
+            .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, track.album)
+            .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, track.durationMs)
+
+        if (artwork != null) {
+            builder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, artwork)
+            builder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, artwork)
+        }
+        mediaSession.setMetadata(builder.build())
+    }
+
+    private fun updateNotificationUi(track: Track?, isPlaying: Boolean, artwork: Bitmap?) {
+        if (track == null && !isPlaying) {
+            stopForegroundInternal()
+            return
         }
 
-        serviceScope.launch(Dispatchers.IO) {
-            val artworkBitmap = track?.let { loadArtwork(it) }
-            withContext(Dispatchers.Main.immediate) {
-                val notification = buildNotification(track, isPlaying, artworkBitmap)
-
-                if (isPlaying) {
-                    startForegroundServiceInternal(notification)
-                } else {
-                    if (isForegroundService) {
-                        stopForegroundCompat(false)
-                    }
-                    notificationManager.notify(NOTIFICATION_ID, notification)
-                }
+        val notification = buildNotification(track, isPlaying, artwork)
+        if (isPlaying) {
+            startForegroundServiceInternal(notification)
+        } else {
+            if (isForegroundService) {
+                stopForegroundCompat(removeNotification = false)
             }
+            notificationManager.notify(NOTIFICATION_ID, notification)
         }
     }
 
@@ -346,6 +392,7 @@ class MediaPlaybackService : Service() {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
+            .setOngoing(isPlaying)
             .addAction(R.drawable.ic_skip_previous, "Previous", prevIntent)
             .addAction(playPauseIcon, playPauseTitle, playPauseIntent)
             .addAction(R.drawable.ic_skip_next, "Next", nextIntent)
@@ -366,7 +413,7 @@ class MediaPlaybackService : Service() {
     }
 
     private fun loadArtwork(track: Track): Bitmap? {
-        val retriever = android.media.MediaMetadataRetriever()
+        val retriever = MediaMetadataRetriever()
         return try {
             retriever.setDataSource(this, track.contentUri)
             val pictureBytes = retriever.embeddedPicture
@@ -384,8 +431,24 @@ class MediaPlaybackService : Service() {
         }
     }
 
+    private fun acquireWakeLock() {
+        try {
+            if (wakeLock?.isHeld != true) {
+                wakeLock?.acquire(3600 * 1000L) // 1 hour max safeguard timeout
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
+            }
+        } catch (_: Exception) {}
+    }
+
     private fun startForegroundServiceInternal(notification: Notification) {
-        if (!isForegroundService) {
+        try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
                     NOTIFICATION_ID,
@@ -396,14 +459,14 @@ class MediaPlaybackService : Service() {
                 startForeground(NOTIFICATION_ID, notification)
             }
             isForegroundService = true
-        } else {
+        } catch (e: Exception) {
             notificationManager.notify(NOTIFICATION_ID, notification)
         }
     }
 
     private fun stopForegroundInternal() {
         if (isForegroundService) {
-            stopForegroundCompat(true)
+            stopForegroundCompat(removeNotification = true)
             isForegroundService = false
         }
         notificationManager.cancel(NOTIFICATION_ID)
