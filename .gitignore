@@ -6,6 +6,9 @@ local.properties
 .cxx/
 *.aab
 *.apk
+*.jks
+*.keystore
+keystore.properties
 
 # IDE and local tooling
 .idea/

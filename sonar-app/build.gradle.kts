@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -17,9 +20,30 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            val keystorePropertiesFile = rootProject.file("keystore.properties")
+            if (keystorePropertiesFile.exists()) {
+                val properties = Properties()
+                FileInputStream(keystorePropertiesFile).use { properties.load(it) }
+                storeFile = rootProject.file(properties.getProperty("storeFile", "keystore/sonar-release.jks"))
+                storePassword = properties.getProperty("storePassword", "sonarpassword")
+                keyAlias = properties.getProperty("keyAlias", "sonar")
+                keyPassword = properties.getProperty("keyPassword", "sonarpassword")
+            } else {
+                initWith(getByName("debug"))
+            }
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+            enableV4Signing = true
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
