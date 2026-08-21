@@ -238,6 +238,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     override fun onCleared() {
         if (!controller.state.value.isPlaying) {
             controller.release()
+            com.sonar.app.player.MediaPlaybackService.stop(getApplication())
         }
         super.onCleared()
     }

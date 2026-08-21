@@ -174,6 +174,15 @@ class MediaPlaybackService : Service() {
         super.onDestroy()
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        val controller = PlayerControllerHolder.controller
+        if (controller == null || !controller.state.value.isPlaying) {
+            stopForegroundInternal()
+            stopSelf()
+        }
+        super.onTaskRemoved(rootIntent)
+    }
+
     private fun setupMediaSession() {
         mediaSession = MediaSessionCompat(this, "SonarMediaSession").apply {
             setCallback(object : MediaSessionCompat.Callback() {
@@ -216,10 +225,11 @@ class MediaPlaybackService : Service() {
     private fun observePlayerState() {
         stateJob?.cancel()
         stateJob = serviceScope.launch {
-            val controller = PlayerControllerHolder.controller
-            if (controller != null) {
-                controller.state.collectLatest { state ->
-                    handleStateUpdate(state)
+            PlayerControllerHolder.controllerFlow.collectLatest { controller ->
+                if (controller != null && !controller.isReleased) {
+                    controller.state.collectLatest { state ->
+                        handleStateUpdate(state)
+                    }
                 }
             }
         }

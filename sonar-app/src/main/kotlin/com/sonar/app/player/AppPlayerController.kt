@@ -64,6 +64,8 @@ class AppPlayerController(
     private var lastObservedState = PlayerState.IDLE
     private var shuffleOrder: List<Int> = emptyList()
     private val released = AtomicBoolean(false)
+    val isReleased: Boolean
+        get() = released.get()
 
     val state: StateFlow<PlayerUiState> = mutableState.asStateFlow()
 
@@ -240,9 +242,7 @@ class AppPlayerController(
 
     fun release() {
         if (!released.compareAndSet(false, true)) return
-        if (PlayerControllerHolder.controller === this) {
-            // keep holder or clear
-        }
+        PlayerControllerHolder.clear(this)
         pollingJob.cancel()
         sleepJob?.cancel()
         gateway.release()
