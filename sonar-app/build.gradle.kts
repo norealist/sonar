@@ -23,20 +23,34 @@ android {
     signingConfigs {
         create("release") {
             val keystorePropertiesFile = rootProject.file("keystore.properties")
-            if (keystorePropertiesFile.exists()) {
-                val properties = Properties()
-                FileInputStream(keystorePropertiesFile).use { properties.load(it) }
-                storeFile = rootProject.file(properties.getProperty("storeFile", "keystore/sonar-release.jks"))
-                storePassword = properties.getProperty("storePassword", "sonarpassword")
-                keyAlias = properties.getProperty("keyAlias", "sonar")
-                keyPassword = properties.getProperty("keyPassword", "sonarpassword")
+            val props = Properties().apply {
+                if (keystorePropertiesFile.exists()) {
+                    FileInputStream(keystorePropertiesFile).use { load(it) }
+                }
+            }
+
+            val storeFilePath = (findProperty("sonarStoreFile") as? String)
+                ?: props.getProperty("storeFile", "keystore/sonar-release.jks")
+            val storePass = (findProperty("sonarStorePassword") as? String)
+                ?: props.getProperty("storePassword")
+            val kAlias = (findProperty("sonarKeyAlias") as? String)
+                ?: props.getProperty("keyAlias", "sonar")
+            val kPass = (findProperty("sonarKeyPassword") as? String)
+                ?: props.getProperty("keyPassword")
+
+            val targetStoreFile = rootProject.file(storeFilePath)
+            if (targetStoreFile.exists() && !storePass.isNullOrBlank() && !kPass.isNullOrBlank()) {
+                storeFile = targetStoreFile
+                storePassword = storePass
+                keyAlias = kAlias
+                keyPassword = kPass
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = true
             } else {
                 initWith(getByName("debug"))
             }
-            enableV1Signing = true
-            enableV2Signing = true
-            enableV3Signing = true
-            enableV4Signing = true
         }
     }
 
