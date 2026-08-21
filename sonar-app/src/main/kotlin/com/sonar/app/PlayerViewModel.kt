@@ -235,7 +235,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     private data class AudioCandidate(val uri: Uri, val name: String)
 
     override fun onCleared() {
-        controller.release()
+        if (!controller.state.value.isPlaying) {
+            controller.release()
+        }
         super.onCleared()
     }
 }

@@ -68,6 +68,7 @@ class AppPlayerController(
     val state: StateFlow<PlayerUiState> = mutableState.asStateFlow()
 
     init {
+        PlayerControllerHolder.controller = this
         pollingJob = scope.launch { pollCore() }
         applySettings(settings.current)
     }
@@ -91,6 +92,7 @@ class AppPlayerController(
         )
         if (state.value.shuffle) resetShuffleOrder(index)
         settings.update { it.copy(selectedTrackId = track.id, selectedIndex = index) }
+        if (autoplay) MediaPlaybackService.start(appContext)
         scope.launch { openSelected(autoplay) }
     }
 
@@ -99,8 +101,12 @@ class AppPlayerController(
             val current = state.value
             val result = when (current.coreState) {
                 PlayerState.PLAYING, PlayerState.BUFFERING -> withContext(Dispatchers.IO) { gateway.pause() }
-                PlayerState.PAUSED -> withContext(Dispatchers.IO) { gateway.resume() }
+                PlayerState.PAUSED -> {
+                    MediaPlaybackService.start(appContext)
+                    withContext(Dispatchers.IO) { gateway.resume() }
+                }
                 else -> {
+                    MediaPlaybackService.start(appContext)
                     if (gateway.streamInfo == null) openSelected(false) else SonarError.OK
                     withContext(Dispatchers.IO) { gateway.play() }
                 }
@@ -234,6 +240,9 @@ class AppPlayerController(
 
     fun release() {
         if (!released.compareAndSet(false, true)) return
+        if (PlayerControllerHolder.controller === this) {
+            PlayerControllerHolder.controller = null
+        }
         pollingJob.cancel()
         sleepJob?.cancel()
         gateway.release()
