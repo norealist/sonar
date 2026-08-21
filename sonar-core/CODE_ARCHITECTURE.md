@@ -65,7 +65,7 @@ create
   -> release
 ```
 
-When opening a `content://` URI, the host copies the content to the application cache and passes a local filesystem path to native code. This keeps the native decoder interface local-file-only and avoids passing Android file descriptors through the decoder layer.
+When opening a `content://` URI, the host obtains a `ParcelFileDescriptor` from `ContentResolver` and passes the direct process descriptor path (`/proc/self/fd/<fd>`) to native code. This streams audio directly from storage without copying files or consuming application cache space.
 
 ### `NativeBridge`
 

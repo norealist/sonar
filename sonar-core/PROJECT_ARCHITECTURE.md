@@ -344,7 +344,7 @@ val flags = data.flags and (
 contentResolver.takePersistableUriPermission(uri, flags)
 ```
 
-`SonarPlayer.open(uri)` copies a `content://` URI into the application cache before native opening. The app remains responsible for storing the original URI, display name, metadata, and playlist record.
+`SonarPlayer.open(uri)` opens a `ParcelFileDescriptor` for `content://` URIs and streams audio directly through `/proc/self/fd/<fd>` without copying data into the application cache. The app remains responsible for storing the original URI, display name, metadata, and playlist record.
 
 ## 8. Metadata and Media Library
 

@@ -14,12 +14,6 @@ Sonar is a native Android music player focused on local audio playback and a cus
 
 ---
 
-> [!WARNING]
-> Sonar currently has a cache-size issue. The application's cache may grow to approximately the size of the selected music directory. For example, if you select emulated/0/Music containing 5 GB of music, Sonar's cache may also grow to around 5 GB. 
-> 
-> This issue is being investigated and will be fixed in an upcoming update. 
-> The issue does not affect the original music files.
-
 ## Roadmap
 
 | Status | Priority | Feature | Description |

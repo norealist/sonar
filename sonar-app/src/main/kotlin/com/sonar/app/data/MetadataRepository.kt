@@ -4,8 +4,6 @@ import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
-import java.io.File
-import java.security.MessageDigest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -27,7 +25,6 @@ interface MetadataRepository {
 
 class MediaMetadataRepository(context: Context) : MetadataRepository {
     private val appContext = context.applicationContext
-    private val artworkDirectory = File(appContext.cacheDir, "artwork").apply { mkdirs() }
 
     override suspend fun extract(uri: Uri, fallbackName: String): ExtractedMetadata = withContext(Dispatchers.IO) {
         val fallbackTitle = fallbackName.substringBeforeLast('.', fallbackName).ifBlank { "Untitled" }
@@ -46,7 +43,7 @@ class MediaMetadataRepository(context: Context) : MetadataRepository {
                 artist = artist,
                 album = album,
                 durationMs = duration,
-                artworkPath = cacheArtwork(uri, retriever.embeddedPicture),
+                artworkPath = null,
                 codec = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE)
                     ?.substringAfterLast('/')?.uppercase(),
                 bitrateKbps = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull()?.div(1000),
@@ -62,15 +59,6 @@ class MediaMetadataRepository(context: Context) : MetadataRepository {
         } finally {
             runCatching { retriever.release() }
         }
-    }
-
-    private fun cacheArtwork(uri: Uri, bytes: ByteArray?): String? {
-        if (bytes == null || bytes.isEmpty()) return null
-        val digest = MessageDigest.getInstance("SHA-256").digest(uri.toString().toByteArray())
-            .joinToString("") { byte -> "%02x".format(byte) }
-        val target = File(artworkDirectory, "$digest.jpg")
-        if (!target.exists()) target.writeBytes(bytes)
-        return target.absolutePath
     }
 
     private fun MediaMetadataRetriever.metadata(key: Int): String? =

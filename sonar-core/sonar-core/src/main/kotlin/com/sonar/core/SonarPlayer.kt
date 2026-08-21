@@ -2,7 +2,7 @@ package com.sonar.core
 
 import android.content.Context
 import android.net.Uri
-import android.provider.OpenableColumns
+import android.os.ParcelFileDescriptor
 import android.media.AudioFormat
 import java.io.File
 import java.io.IOException
@@ -24,6 +24,7 @@ class SonarPlayer(
     private var currentStream: StreamInfo? = null
     private var currentOutput = OutputConfig(AudioFormat.ENCODING_PCM_16BIT)
     private var highResolutionEnabled = false
+    private var activePfd: ParcelFileDescriptor? = null
 
     @Volatile
     private var lastError: SonarError? = null
@@ -70,19 +71,35 @@ class SonarPlayer(
 
     init {
         check(nativeHandle != 0L) { "Unable to create the native Sonar engine" }
+        runCatching {
+            appContext.cacheDir.listFiles { _, name -> name.startsWith("sonar-") || name == "artwork" }?.forEach {
+                it.deleteRecursively()
+            }
+        }
     }
 
     fun open(filePath: String): SonarError = synchronized(lock) {
+        activePfd?.close()
+        activePfd = null
         openPathLocked(filePath)
     }
 
-    fun open(uri: Uri): SonarError {
+    fun open(uri: Uri): SonarError = synchronized(lock) {
+        activePfd?.close()
+        activePfd = null
         val path = try {
-            materializeUri(uri)
-        } catch (_: IOException) {
-            return SonarError.ERR_FILE_READ.also { lastError = it }
+            if (uri.scheme == "file") {
+                requireNotNull(uri.path)
+            } else {
+                val pfd = appContext.contentResolver.openFileDescriptor(uri, "r")
+                    ?: throw IOException("Unable to open file descriptor for $uri")
+                activePfd = pfd
+                "/proc/self/fd/${pfd.fd}"
+            }
+        } catch (_: Exception) {
+            return@synchronized SonarError.ERR_FILE_READ.also { lastError = it }
         }
-        return synchronized(lock) { openPathLocked(path) }
+        openPathLocked(path)
     }
 
     fun play(): SonarError = synchronized(lock) {
@@ -115,6 +132,8 @@ class SonarPlayer(
         track = null
         val code = NativeBridge.nativeStop(nativeHandle)
         currentStream = null
+        activePfd?.close()
+        activePfd = null
         recordResultLocked(code)
     }
 
@@ -166,6 +185,8 @@ class SonarPlayer(
             if (nativeHandle == 0L) return
             track?.release()
             track = null
+            activePfd?.close()
+            activePfd = null
             NativeBridge.nativeDestroyEngine(nativeHandle)
             nativeHandle = 0L
             currentStream = null
@@ -174,6 +195,8 @@ class SonarPlayer(
 
     private fun openPathLocked(filePath: String): SonarError {
         if (nativeHandle == 0L || filePath.isBlank()) {
+            activePfd?.close()
+            activePfd = null
             return recordErrorLocked(SonarError.ERR_FILE_NOT_FOUND.code)
         }
         track?.release()
@@ -181,9 +204,17 @@ class SonarPlayer(
         currentStream = null
         NativeBridge.nativeStop(nativeHandle)
         val openCode = NativeBridge.nativeOpen(nativeHandle, filePath)
-        if (openCode != SonarError.OK.code) return recordErrorLocked(openCode)
+        if (openCode != SonarError.OK.code) {
+            activePfd?.close()
+            activePfd = null
+            return recordErrorLocked(openCode)
+        }
         val info = NativeBridge.nativeGetStreamInfo(nativeHandle)
-            ?: return recordErrorLocked(SonarError.ERR_INTERNAL.code)
+        if (info == null) {
+            activePfd?.close()
+            activePfd = null
+            return recordErrorLocked(SonarError.ERR_INTERNAL.code)
+        }
         negotiator.beginOpen()
         val negotiated = negotiateLocked(info)
         currentStream = info
@@ -191,6 +222,8 @@ class SonarPlayer(
             track = createTrackWithFallbackLocked(info, negotiated)
         } catch (_: Throwable) {
             NativeBridge.nativeStop(nativeHandle)
+            activePfd?.close()
+            activePfd = null
             return recordErrorLocked(SonarError.ERR_OUTPUT_FORMAT.code)
         }
         clearErrorLocked()
@@ -257,20 +290,5 @@ class SonarPlayer(
 
     private fun clearErrorLocked() {
         lastError = null
-    }
-
-    private fun materializeUri(uri: Uri): String {
-        if (uri.scheme == "file") return requireNotNull(uri.path)
-        val name = appContext.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-            ?.use { cursor ->
-                if (cursor.moveToFirst()) cursor.getString(0) else null
-            }
-            ?.replace(Regex("[^A-Za-z0-9._-]"), "_")
-            ?: "audio"
-        val destination = File(appContext.cacheDir, "sonar-$name")
-        appContext.contentResolver.openInputStream(uri)?.use { input ->
-            destination.outputStream().use { output -> input.copyTo(output) }
-        } ?: throw IOException("Unable to read $uri")
-        return destination.absolutePath
     }
 }
