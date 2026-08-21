@@ -28,6 +28,8 @@ class AudioTrackWrapper(
     private val audioTrack: AudioTrack = createAudioTrack()
     private val lock = Any()
     private var active = false
+    @Volatile
+    private var isPaused = false
     private var writeThread: Thread? = null
 
     private fun createAudioTrack(): AudioTrack {
@@ -71,6 +73,7 @@ class AudioTrackWrapper(
     fun start() {
         synchronized(lock) {
             if (active) return
+            isPaused = false
             audioTrack.play()
             active = true
             writeThread = Thread(::writeLoop, "sonar-audio-write").also { it.start() }
@@ -79,13 +82,19 @@ class AudioTrackWrapper(
 
     fun pause() {
         synchronized(lock) {
-            if (active) audioTrack.pause()
+            if (active) {
+                isPaused = true
+                audioTrack.pause()
+            }
         }
     }
 
     fun resume() {
         synchronized(lock) {
-            if (active) audioTrack.play()
+            if (active) {
+                isPaused = false
+                audioTrack.play()
+            }
         }
     }
 
@@ -97,6 +106,7 @@ class AudioTrackWrapper(
         val thread: Thread?
         synchronized(lock) {
             active = false
+            isPaused = false
             thread = writeThread
             writeThread = null
             try {
@@ -125,8 +135,18 @@ class AudioTrackWrapper(
         } catch (_: Exception) {}
 
         while (true) {
-            synchronized(lock) {
+            val paused = synchronized(lock) {
                 if (!active) return
+                isPaused
+            }
+            if (paused) {
+                try {
+                    Thread.sleep(10)
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    return
+                }
+                continue
             }
             if (audioTrack.playState != AudioTrack.PLAYSTATE_PLAYING) {
                 try {

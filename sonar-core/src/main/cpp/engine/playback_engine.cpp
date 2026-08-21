@@ -249,6 +249,10 @@ ErrorCode PlaybackEngine::seek(std::int64_t positionMs) {
 std::size_t PlaybackEngine::readPcm(void* output, std::size_t outputBytes, std::size_t maxFrames) {
     if (output == nullptr || maxFrames == 0) return 0;
     std::lock_guard<std::mutex> lock(stateMutex_);
+    const auto currentState = state_.load(std::memory_order_relaxed);
+    if (currentState != PlayerState::PLAYING && currentState != PlayerState::BUFFERING) {
+        return 0;
+    }
     const auto& ring = ring_;
     std::size_t channels = 0;
     channels = info_.channels > 0 ? static_cast<std::size_t>(info_.channels) : 0;
